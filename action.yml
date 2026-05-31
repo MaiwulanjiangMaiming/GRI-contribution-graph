@@ -1,0 +1,42 @@
+name: 'GitHub Resonance Imaging'
+author: 'rock'
+description: 'Generate an animated MRI scan visualization from GitHub contribution graph'
+branding:
+  icon: 'activity'
+  color: 'green'
+
+inputs:
+  github_user_name:
+    description: 'GitHub username to fetch contribution graph from'
+    required: true
+    default: '${{ github.repository_owner }}'
+  outputs:
+    description: |
+      List of output files to generate, one per line.
+      Supported formats: svg, png, html
+      Supported query options:
+        - theme: dark | light (default: dark)
+        - speed: slow | normal | fast (animation speed)
+    required: false
+    default: |
+      dist/gri-dark.svg?theme=dark
+      dist/gri-light.svg?theme=light
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Generate GRI visualization
+      run: node ${{ github.action_path }}/packages/action/index.js
+      env:
+        GITHUB_USER_NAME: ${{ inputs.github_user_name }}
+        GITHUB_TOKEN: ${{ github.token }}
+        OUTPUTS: ${{ inputs.outputs }}
+      shell: bash

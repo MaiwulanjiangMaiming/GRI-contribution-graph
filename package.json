@@ -1,0 +1,33 @@
+{
+  "name": "github-resonance-imaging",
+  "version": "1.0.0",
+  "description": "GitHub Resonance Imaging (GRI) — An animated MRI scan visualization of GitHub contribution graphs",
+  "repository": "github:rock/github-resonance-imaging",
+  "author": "rock",
+  "license": "MIT",
+  "keywords": [
+    "github",
+    "contribution-graph",
+    "visualization",
+    "mri",
+    "animation",
+    "canvas",
+    "github-profile",
+    "readme"
+  ],
+  "scripts": {
+    "dev": "npx serve .",
+    "build": "node build.js",
+    "lint": "npx prettier --check '**/*.{js,ts,html,css,json,md,yml}'",
+    "format": "npx prettier --write '**/*.{js,ts,html,css,json,md,yml}'"
+  },
+  "devDependencies": {
+    "prettier": "^3.0.0"
+  },
+  "files": [
+    "dist/",
+    "packages/",
+    "action.yml",
+    "README.md"
+  ]
+}

@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GitHub Resonance Imaging (GRI)</title>
+  <meta name="description" content="An animated MRI scan visualization of GitHub contribution graphs">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface-hover: #1c2128;
+      --border: #30363d;
+      --text: #c9d1d9;
+      --text-secondary: #8b949e;
+      --accent: #45e0d8;
+      --accent-dim: #2a9d96;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: var(--text);
+    }
+
+    .logo svg {
+      width: 32px;
+      height: 32px;
+    }
+
+    .logo h1 {
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: -0.3px;
+    }
+
+    .logo span {
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    nav {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 500;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .btn:hover {
+      background: var(--surface-hover);
+      border-color: var(--accent-dim);
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #0d1117;
+      border-color: var(--accent);
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-dim);
+      border-color: var(--accent-dim);
+    }
+
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+      gap: 32px;
+    }
+
+    .hero {
+      text-align: center;
+      max-width: 640px;
+    }
+
+    .hero h2 {
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      letter-spacing: -0.5px;
+    }
+
+    .hero p {
+      color: var(--text-secondary);
+      font-size: 16px;
+      line-height: 1.6;
+    }
+
+    .scanner-container {
+      width: 100%;
+      max-width: 720px;
+    }
+
+    .user-input {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .user-input input {
+      flex: 1;
+      min-width: 200px;
+      padding: 8px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+
+    .user-input input:focus {
+      border-color: var(--accent);
+    }
+
+    .user-input input::placeholder {
+      color: var(--text-secondary);
+    }
+
+    .tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 16px;
+      padding: 4px;
+      background: var(--surface);
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      width: fit-content;
+    }
+
+    .tab {
+      padding: 6px 16px;
+      border-radius: 6px;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .tab.active {
+      background: var(--bg);
+      color: var(--text);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+
+    .tab:hover:not(.active) {
+      color: var(--text);
+    }
+
+    .token-input {
+      width: 100%;
+      margin-bottom: 12px;
+    }
+
+    .token-input input {
+      width: 100%;
+      padding: 8px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 13px;
+      outline: none;
+    }
+
+    .token-input input::placeholder {
+      color: var(--text-secondary);
+    }
+
+    .status-msg {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 8px;
+      min-height: 18px;
+    }
+
+    .status-msg.error {
+      color: #f85149;
+    }
+
+    .status-msg.success {
+      color: #3fb950;
+    }
+
+    .embed-code {
+      width: 100%;
+      max-width: 640px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .embed-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .embed-header h3 {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .embed-header button {
+      padding: 4px 10px;
+      font-size: 12px;
+    }
+
+    pre {
+      padding: 16px;
+      overflow-x: auto;
+      font-size: 12px;
+      line-height: 1.6;
+      color: var(--text-secondary);
+    }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Courier New', monospace;
+    }
+
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      width: 100%;
+      max-width: 640px;
+    }
+
+    .feature {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .feature h4 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: var(--accent);
+    }
+
+    .feature p {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 24px;
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: 13px;
+    }
+
+    footer a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      text-decoration: underline;
+    }
+
+    @media (max-width: 640px) {
+      .hero h2 { font-size: 24px; }
+      header { padding: 12px 16px; }
+      main { padding: 24px 16px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="/" class="logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/>
+        <path d="M2 12h20"/>
+      </svg>
+      <h1>GitHub Resonance Imaging <span>(GRI)</span></h1>
+    </a>
+    <nav>
+      <a href="https://github.com/rock/github-resonance-imaging" class="btn" target="_blank" rel="noopener">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+        GitHub
+      </a>
+    </nav>
+  </header>
+
+  <main>
+    <div class="hero">
+      <h2>Your Contributions, Reimagined</h2>
+      <p>Watch your GitHub contribution graph transform into a mesmerizing MRI scan. Complete with k-space filling, echo formation, and image reconstruction.</p>
+    </div>
+
+    <div class="scanner-container">
+      <div class="user-input">
+        <input type="text" id="username-input" placeholder="Enter GitHub username (e.g., torvalds)" value="">
+        <button class="btn btn-primary" onclick="loadUser()">Load</button>
+      </div>
+      <div class="token-input">
+        <input type="password" id="token-input" placeholder="GitHub token (optional, for real data)">
+      </div>
+      <div class="tabs">
+        <button class="tab active" data-theme="dark" onclick="switchTheme('dark')">Dark</button>
+        <button class="tab" data-theme="light" onclick="switchTheme('light')">Light</button>
+      </div>
+      <div id="scanner-wrapper">
+        <iframe id="scanner-frame" src="github_resonance_imaging_scanner.html" style="width:100%;height:420px;border:none;border-radius:12px;" title="GRI Scanner"></iframe>
+      </div>
+      <div id="status-msg" class="status-msg"></div>
+    </div>
+
+    <div class="embed-code">
+      <div class="embed-header">
+        <h3>Add to your README</h3>
+        <button class="btn" onclick="copyCode()">Copy</button>
+      </div>
+      <pre><code id="embed-code">&lt;picture&gt;
+  &lt;source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/rock/github-resonance-imaging/output/gri-dark.svg" /&gt;
+  &lt;source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/rock/github-resonance-imaging/output/gri-light.svg" /&gt;
+  &lt;img alt="GitHub Resonance Imaging" src="https://raw.githubusercontent.com/rock/github-resonance-imaging/output/gri-dark.svg" /&gt;
+&lt;/picture&gt;</code></pre>
+    </div>
+
+    <div class="features">
+      <div class="feature">
+        <h4>MRI Simulation</h4>
+        <p>Realistic pulse sequence with k-space filling, echo formation, and image reconstruction</p>
+      </div>
+      <div class="feature">
+        <h4>Auto Theme</h4>
+        <p>Seamless dark/light mode switching based on system preferences</p>
+      </div>
+      <div class="feature">
+        <h4>GitHub Action</h4>
+        <p>Automatically generate updated visualizations daily via GitHub Actions</p>
+      </div>
+      <div class="feature">
+        <h4>Interactive</h4>
+        <p>Pause, play, and re-scan with full control over the animation</p>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <p>MIT Licensed &middot; <a href="https://github.com/rock/github-resonance-imaging">View on GitHub</a></p>
+  </footer>
+
+  <script>
+    let currentTheme = 'dark';
+    let currentGrid = null;
+    let currentKmag = null;
+
+    function setStatus(msg, type) {
+      const el = document.getElementById('status-msg');
+      el.textContent = msg;
+      el.className = 'status-msg' + (type ? ' ' + type : '');
+    }
+
+    async function fetchContributions(username, token) {
+      const query = `
+        query ($login: String!) {
+          user(login: $login) {
+            contributionsCollection {
+              contributionCalendar {
+                weeks {
+                  contributionDays {
+                    contributionCount
+                    contributionLevel
+                    weekday
+                    date
+                  }
+                }
+              }
+            }
+          }
+        }
+      `;
+
+      const res = await fetch('https://api.github.com/graphql', {
+        method: 'POST',
+        headers: {
+          Authorization: `bearer ${token}`,
+          'Content-Type': 'application/json',
+          'User-Agent': 'github-resonance-imaging',
+        },
+        body: JSON.stringify({ query, variables: { login: username } }),
+      });
+
+      if (!res.ok) throw new Error(`API error: ${res.status}`);
+      const { data, errors } = await res.json();
+      if (errors?.[0]) throw new Error(errors[0].message);
+      if (!data?.user) throw new Error(`User "${username}" not found`);
+
+      const weeks = data.user.contributionsCollection.contributionCalendar.weeks;
+      const grid = [];
+      const kmag = [];
+
+      for (let w = 0; w < weeks.length; w++) {
+        grid[w] = [];
+        kmag[w] = [];
+        const days = weeks[w].contributionDays;
+        const maxCount = Math.max(...days.map(d => d.contributionCount), 1);
+
+        for (let d = 0; d < 7; d++) {
+          const day = days.find(dd => dd.weekday === d);
+          if (day) {
+            const levelMap = { NONE: 0, FIRST_QUARTILE: 1, SECOND_QUARTILE: 2, THIRD_QUARTILE: 3, FOURTH_QUARTILE: 4 };
+            grid[w][d] = levelMap[day.contributionLevel] ?? 0;
+            kmag[w][d] = day.contributionCount / maxCount;
+          } else {
+            grid[w][d] = 0;
+            kmag[w][d] = 0;
+          }
+        }
+      }
+
+      while (grid.length < 52) {
+        grid.push(new Array(7).fill(0));
+        kmag.push(new Array(7).fill(0));
+      }
+
+      return { grid, kmag };
+    }
+
+    async function loadUser() {
+      const username = document.getElementById('username-input').value.trim();
+      const token = document.getElementById('token-input').value.trim();
+
+      if (!username) {
+        setStatus('Please enter a GitHub username', 'error');
+        return;
+      }
+
+      setStatus('Loading...');
+
+      try {
+        if (token) {
+          const data = await fetchContributions(username, token);
+          currentGrid = data.grid;
+          currentKmag = data.kmag;
+          setStatus(`Loaded real contribution data for ${username}`, 'success');
+        } else {
+          setStatus('No token provided, using demo data. Add a GitHub token for real data.', 'error');
+          currentGrid = null;
+          currentKmag = null;
+        }
+
+        // Reload iframe with current theme
+        const frame = document.getElementById('scanner-frame');
+        const src = currentTheme === 'light'
+          ? 'github_resonance_imaging_scanner_light.html'
+          : 'github_resonance_imaging_scanner.html';
+        frame.src = src + '?t=' + Date.now();
+      } catch (err) {
+        setStatus(err.message, 'error');
+      }
+    }
+
+    function switchTheme(theme) {
+      currentTheme = theme;
+      document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.theme === theme));
+      const frame = document.getElementById('scanner-frame');
+      const src = theme === 'light'
+        ? 'github_resonance_imaging_scanner_light.html'
+        : 'github_resonance_imaging_scanner.html';
+      frame.src = src + '?t=' + Date.now();
+    }
+
+    function copyCode() {
+      const code = document.getElementById('embed-code').textContent;
+      navigator.clipboard.writeText(code).then(() => {
+        const btn = document.querySelector('.embed-header button');
+        const original = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(() => btn.textContent = original, 1500);
+      });
+    }
+  </script>
+</body>
+</html>
