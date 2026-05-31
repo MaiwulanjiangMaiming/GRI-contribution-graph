@@ -1,6 +1,6 @@
 # GitHub Resonance Imaging (GRI)
 
-[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/rock/github-resonance-imaging/main.yml?label=demo&style=flat-square)](https://github.com/rock/github-resonance-imaging/actions)
+[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/MaiwulanjiangMaiming/GRI-contribution-graph/main.yml?label=demo&style=flat-square)](https://github.com/MaiwulanjiangMaiming/GRI-contribution-graph/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 
 > An animated MRI scan visualization of GitHub contribution graphs.
@@ -8,9 +8,9 @@
 Pull a GitHub user's contribution graph, simulate an MRI acquisition sequence — complete with k-space filling, echo formation, and image reconstruction — then render it as an animated SVG or interactive HTML.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/rock/github-resonance-imaging/output/gri-dark.svg" />
-  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/rock/github-resonance-imaging/output/gri-light.svg" />
-  <img alt="GitHub Resonance Imaging scan animation" src="https://raw.githubusercontent.com/rock/github-resonance-imaging/output/gri-dark.svg" />
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/MaiwulanjiangMaiming/GRI-contribution-graph/output/gri-dark.svg" />
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/MaiwulanjiangMaiming/GRI-contribution-graph/output/gri-light.svg" />
+  <img alt="GitHub Resonance Imaging scan animation" src="https://raw.githubusercontent.com/MaiwulanjiangMaiming/GRI-contribution-graph/output/gri-dark.svg" />
 </picture>
 
 ## Features
@@ -19,7 +19,7 @@ Pull a GitHub user's contribution graph, simulate an MRI acquisition sequence �
 - **Dark & Light Themes** — Automatic theme switching via `prefers-color-scheme`
 - **Interactive Controls** — Pause/play and re-scan
 - **GitHub Action** — Auto-generate daily for your profile README
-- **Interactive Demo** — Try it live at [rock.github.io/github-resonance-imaging](https://rock.github.io/github-resonance-imaging)
+- **Interactive Demo** — Try it live at [MaiwulanjiangMaiming.github.io/GRI-contribution-graph](https://MaiwulanjiangMaiming.github.io/GRI-contribution-graph)
 
 ## Usage
 
@@ -28,7 +28,7 @@ Pull a GitHub user's contribution graph, simulate an MRI acquisition sequence �
 Add to your profile README workflow:
 
 ```yaml
-- uses: rock/github-resonance-imaging@v1
+- uses: MaiwulanjiangMaiming/GRI-contribution-graph@v1
   with:
     github_user_name: ${{ github.repository_owner }}
     outputs: |
@@ -48,7 +48,7 @@ Then embed in your README:
 
 ### Interactive Demo
 
-Visit the live demo: **[rock.github.io/github-resonance-imaging](https://rock.github.io/github-resonance-imaging)**
+Visit the live demo: **[MaiwulanjiangMaiming.github.io/GRI-contribution-graph](https://MaiwulanjiangMaiming.github.io/GRI-contribution-graph)**
 
 Or run locally:
 
@@ -114,4 +114,4 @@ npm run lint
 
 ## License
 
-MIT © [rock](https://github.com/rock)
+MIT © [MaiwulanjiangMaiming](https://github.com/MaiwulanjiangMaiming)
