@@ -192,6 +192,7 @@ function generateSVGGRI(grid, dates, counts, theme = 'dark', username = 'user') 
       bg: '#0d1117',
       accent: '#45e0d8',
       sig: ['#122a1e', '#1f5c3a', '#2f9c5b', '#46d07e', '#86f2b0'],
+      gri: ['#1a3d38', '#2a7a6e', '#3db8a8', '#5ce8d8', '#a0f5ec'],
       unacq: '#0d141b',
       text: '#8b949e',
     },
@@ -199,6 +200,7 @@ function generateSVGGRI(grid, dates, counts, theme = 'dark', username = 'user') 
       bg: '#ffffff',
       accent: '#0891b2',
       sig: ['#e2e8f0', '#99f6e4', '#5eead4', '#2dd4bf', '#14b8a6'],
+      gri: ['#d1fae5', '#6ee7b7', '#34d399', '#10b981', '#059669'],
       unacq: '#f1f5f9',
       text: '#656d76',
     },
@@ -208,6 +210,31 @@ function generateSVGGRI(grid, dates, counts, theme = 'dark', username = 'user') 
   const width = LP + WEEKS * (CELL + GAP) + PAD;
   const height = TP + DAYS * (CELL + GAP) + PAD + 40;
 
+  // GRI letter overlay
+  const GL = {
+    G: ['01110', '10001', '10000', '10011', '10001', '10001', '01110'],
+    R: ['11110', '10001', '10001', '11110', '10100', '10010', '10001'],
+    I: ['11111', '00100', '00100', '00100', '00100', '00100', '11111']
+  };
+  const isGRI = Array(WEEKS).fill(null).map(() => Array(DAYS).fill(false));
+  const letters = ['G', 'R', 'I'];
+  let sx = 17;
+  for (let li = 0; li < 3; li++) {
+    const g = GL[letters[li]];
+    for (let cy = 0; cy < 7; cy++) {
+      const row = g[cy];
+      for (let cx = 0; cx < 5; cx++) {
+        if (row[cx] === '1') {
+          const ww = sx + cx;
+          if (ww < WEEKS && cy < DAYS) {
+            isGRI[ww][cy] = true;
+          }
+        }
+      }
+    }
+    sx += 6;
+  }
+
   const monthLabels = calculateMonthPositions(dates);
 
   let cells = '';
@@ -216,7 +243,8 @@ function generateSVGGRI(grid, dates, counts, theme = 'dark', username = 'user') 
       const x = LP + w * (CELL + GAP);
       const y = TP + d * (CELL + GAP);
       const level = grid[w]?.[d] ?? 0;
-      const fill = C.sig[level] || C.unacq;
+      const isLetter = isGRI[w][d];
+      const fill = isLetter ? C.gri[level] : (C.sig[level] || C.unacq);
       const date = dates[w]?.[d] || '';
       const count = counts[w]?.[d] ?? 0;
       const delay = w * 0.05;

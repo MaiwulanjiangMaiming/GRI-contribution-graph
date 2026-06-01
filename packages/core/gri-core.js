@@ -44,6 +44,7 @@
       accent: '#45e0d8',
       dim: '#5d7686',
       sig: ['#122a1e', '#1f5c3a', '#2f9c5b', '#46d07e', '#86f2b0'],
+      gri: ['#1a3d38', '#2a7a6e', '#3db8a8', '#5ce8d8', '#a0f5ec'],
       unacq: '#0d141b',
       bg: '#0b0f14',
       panelBg: '#0f1620',
@@ -58,6 +59,7 @@
       accent: '#0891b2',
       dim: '#94a3b8',
       sig: ['#e2e8f0', '#99f6e4', '#5eead4', '#2dd4bf', '#14b8a6'],
+      gri: ['#d1fae5', '#6ee7b7', '#34d399', '#10b981', '#059669'],
       unacq: '#f1f5f9',
       bg: '#ffffff',
       panelBg: '#f8fafc',
@@ -212,28 +214,56 @@
   function generateSVG(grid, dates, counts, theme, username) {
     const { WEEKS, DAYS, CELL, GAP, PAD, LP, TP } = CONFIG;
     const C = THEMES[theme] || THEMES.dark;
-    const width = LP + WEEKS * (CELL + GAP) + PAD;
-    const height = TP + DAYS * (CELL + GAP) + PAD + 40;
-    const monthLabels = calculateMonthPositions(dates);
+  const width = LP + WEEKS * (CELL + GAP) + PAD;
+  const height = TP + DAYS * (CELL + GAP) + PAD + 40;
 
-    let cells = '';
-    for (let w = 0; w < WEEKS; w++) {
-      for (let d = 0; d < DAYS; d++) {
-        const x = LP + w * (CELL + GAP);
-        const y = TP + d * (CELL + GAP);
-        const level = grid[w]?.[d] ?? 0;
-        const fill = C.sig[level] || C.unacq;
-        const date = dates[w]?.[d] || '';
-        const count = counts[w]?.[d] ?? 0;
-        const delay = w * 0.05;
-        cells += `    <g class="cell-group">
+  // GRI letter overlay
+  const GL = {
+    G: ['01110', '10001', '10000', '10011', '10001', '10001', '01110'],
+    R: ['11110', '10001', '10001', '11110', '10100', '10010', '10001'],
+    I: ['11111', '00100', '00100', '00100', '00100', '00100', '11111']
+  };
+  const isGRI = Array(WEEKS).fill(null).map(() => Array(DAYS).fill(false));
+  const letters = ['G', 'R', 'I'];
+  let sx = 17;
+  for (let li = 0; li < 3; li++) {
+    const g = GL[letters[li]];
+    for (let cy = 0; cy < 7; cy++) {
+      const row = g[cy];
+      for (let cx = 0; cx < 5; cx++) {
+        if (row[cx] === '1') {
+          const ww = sx + cx;
+          if (ww < WEEKS && cy < DAYS) {
+            isGRI[ww][cy] = true;
+          }
+        }
+      }
+    }
+    sx += 6;
+  }
+
+  const monthLabels = calculateMonthPositions(dates);
+
+  let cells = '';
+  for (let w = 0; w < WEEKS; w++) {
+    for (let d = 0; d < DAYS; d++) {
+      const x = LP + w * (CELL + GAP);
+      const y = TP + d * (CELL + GAP);
+      const level = grid[w]?.[d] ?? 0;
+      const isLetter = isGRI[w][d];
+      const fill = isLetter ? C.gri[level] : (C.sig[level] || C.unacq);
+      const date = dates[w]?.[d] || '';
+      const count = counts[w]?.[d] ?? 0;
+      const delay = w * 0.05;
+      
+      cells += `    <g class="cell-group">
       <rect x="${x}" y="${y}" width="${CELL}" height="${CELL}" rx="2" fill="${fill}">
         <animate attributeName="opacity" values="0;1" dur="0.3s" begin="${delay}s" fill="freeze"/>
       </rect>
       <title>${count} echo on ${date}</title>
     </g>\n`;
-      }
     }
+  }
 
     let monthLabelsSVG = '';
     for (const m of monthLabels) {
@@ -465,6 +495,30 @@ ${title}
           this.total += data.counts[w][d];
         }
       }
+      // Build GRI letter overlay
+      this.isGRI = Array(52).fill(null).map(() => Array(7).fill(false));
+      const GL = {
+        G: ['01110', '10001', '10000', '10011', '10001', '10001', '01110'],
+        R: ['11110', '10001', '10001', '11110', '10100', '10010', '10001'],
+        I: ['11111', '00100', '00100', '00100', '00100', '00100', '11111']
+      };
+      const letters = ['G', 'R', 'I'];
+      let sx = 17;
+      for (let li = 0; li < 3; li++) {
+        const g = GL[letters[li]];
+        for (let cy = 0; cy < 7; cy++) {
+          const row = g[cy];
+          for (let cx = 0; cx < 5; cx++) {
+            if (row[cx] === '1') {
+              const ww = sx + cx;
+              if (ww < 52 && cy < 7) {
+                this.isGRI[ww][cy] = true;
+              }
+            }
+          }
+        }
+        sx += 6;
+      }
     }
 
     start() {
@@ -529,7 +583,13 @@ ${title}
         for (let d = 0; d < 7; d++) {
           const X = LP + w * P;
           const Y = TP + d * P;
-          this.mx.fillStyle = (acq >= w + 1) ? C.sig[grid[w][d]] : C.unacq;
+          const isLetter = this.isGRI[w][d];
+          const level = grid[w][d];
+          if (acq >= w + 1) {
+            this.mx.fillStyle = isLetter ? C.gri[level] : C.sig[level];
+          } else {
+            this.mx.fillStyle = C.unacq;
+          }
           roundRect(this.mx, X, Y, HTML_CELL, HTML_CELL, 2);
           this.mx.fill();
         }

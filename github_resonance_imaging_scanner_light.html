@@ -74,32 +74,108 @@
 </div>
 <script>
 (function(){
-  var C={accent:'#0891b2',dim:'#94a3b8',sig:['#e2e8f0','#99f6e4','#5eead4','#2dd4bf','#14b8a6'],unacq:'#f1f5f9'};
-  var WEEKS=52,DAYS=7;
-  function mul(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
-  var rnd=mul(20260531);
-  var GL={G:["01110","10001","10000","10011","10001","10001","01110"],R:["11110","10001","10001","11110","10100","10010","10001"],I:["11111","00100","00100","00100","00100","00100","11111"]};
-  var data=[],kmag=[],dates=[],counts=[];
-  var today=new Date('2026-06-01');
-  for(var w=0;w<WEEKS;w++){data[w]=[];kmag[w]=[];dates[w]=[];counts[w]=[];for(var d=0;d<DAYS;d++){var r=rnd();var c=Math.floor(r*20);counts[w][d]=c;data[w][d]=c===0?0:c<=3?1:c<=6?2:c<=10?3:4;kmag[w][d]=c/20;var dayDate=new Date(today);dayDate.setDate(today.getDate()-((51-w)*7+(6-d)));dates[w][d]=dayDate.toISOString().split('T')[0];}}
-  var letters=['G','R','I'],sx=17;
-  for(var li=0;li<3;li++){var g=GL[letters[li]];for(var cy=0;cy<7;cy++){var row=g[cy];for(var cx=0;cx<5;cx++){if(row[cx]==='1'){var ww=sx+cx;if(ww<WEEKS){var gr=(rnd()>0.35?4:3);data[ww][cy]=gr;counts[ww][cy]=Math.floor((gr/4)*20);kmag[ww][cy]=gr/4;}}}sx+=6;}}
-  var total=0;for(var a=0;a<WEEKS;a++)for(var b=0;b<DAYS;b++)total+=counts[a][b];
+  // ====== CONFIG ======
+  var WEEKS=52, DAYS=7;
+  var C={accent:'#0891b2', dim:'#94a3b8', 
+    sig:['#e2e8f0','#99f6e4','#5eead4','#2dd4bf','#14b8a6'],
+    gri:['#d1fae5','#6ee7b7','#34d399','#10b981','#059669'],
+    unacq:'#f1f5f9'};
 
-  // Calculate month positions from actual dates
+  // ====== DATA GENERATION (shared between themes) ======
+  function mul(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};
+  }
+  var rnd=mul(20260531);
+
+  // Generate base contribution data
+  var counts=[], dates=[], kmag=[];
+  var today=new Date('2026-06-01');
+  for(var w=0;w<WEEKS;w++){
+    counts[w]=[]; dates[w]=[]; kmag[w]=[];
+    for(var d=0;d<DAYS;d++){
+      var r=rnd();
+      var c=Math.floor(r*20);
+      counts[w][d]=c;
+      kmag[w][d]=c/20;
+      var dayDate=new Date(today);
+      dayDate.setDate(today.getDate()-((51-w)*7+(6-d)));
+      dates[w][d]=dayDate.toISOString().split('T')[0];
+    }
+  }
+
+  // Calculate grid levels from counts (0-4)
+  var grid=[];
+  for(var w=0;w<WEEKS;w++){
+    grid[w]=[];
+    for(var d=0;d<DAYS;d++){
+      var c=counts[w][d];
+      grid[w][d]=c===0?0:c<=3?1:c<=6?2:c<=10?3:4;
+    }
+  }
+
+  // GRI letter overlay (only affects visual color, not counts)
+  var GL={
+    G:["01110","10001","10000","10011","10001","10001","01110"],
+    R:["11110","10001","10001","11110","10100","10010","10001"],
+    I:["11111","00100","00100","00100","00100","00100","11111"]
+  };
+  var isGRI=[]; // Track which cells are GRI letters
+  for(var w=0;w<WEEKS;w++){isGRI[w]=[];for(var d=0;d<DAYS;d++)isGRI[w][d]=false;}
+
+  var letters=['G','R','I'], sx=17;
+  for(var li=0;li<3;li++){
+    var g=GL[letters[li]];
+    for(var cy=0;cy<7;cy++){
+      var row=g[cy];
+      for(var cx=0;cx<5;cx++){
+        if(row[cx]==='1'){
+          var ww=sx+cx;
+          if(ww<WEEKS && cy<DAYS){
+            isGRI[ww][cy]=true;
+            grid[ww][cy]=4; // Force max brightness for GRI letters
+          }
+        }
+      }
+    }
+    sx+=6;
+  }
+
+  // Total signal (sum of all counts)
+  var total=0;
+  for(var a=0;a<WEEKS;a++)for(var b=0;b<DAYS;b++)total+=counts[a][b];
+
+  // ====== MONTH LABELS ======
   var months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   var monthLabels=[];
   var seenMonths=new Set();
-  for(var w=0;w<dates.length;w++){for(var d=0;d<7;d++){if(!dates[w][d])continue;var date=new Date(dates[w][d]);var month=date.getMonth();var day=date.getDate();if(day<=7&&!seenMonths.has(month)){seenMonths.add(month);monthLabels.push({month:month,week:w,label:months[month]});}}}
+  for(var w=0;w<dates.length;w++){
+    for(var d=0;d<7;d++){
+      if(!dates[w][d])continue;
+      var date=new Date(dates[w][d]);
+      var month=date.getMonth();
+      var day=date.getDate();
+      if(day<=7&&!seenMonths.has(month)){
+        seenMonths.add(month);
+        monthLabels.push({month:month, week:w, label:months[month]});
+      }
+    }
+  }
 
-  function dpr(cv,w,h){var rr=window.devicePixelRatio||1;cv.width=w*rr;cv.height=h*rr;cv.style.width=w+'px';cv.style.height=h+'px';var x=cv.getContext('2d');x.setTransform(rr,0,0,rr,0,0);return x;}
-  var MW=596,MH=93,LP=24,TP=16,P=11,CELL=9;
+  // ====== CANVAS SETUP ======
+  function dpr(cv,w,h){
+    var rr=window.devicePixelRatio||1;
+    cv.width=w*rr; cv.height=h*rr;
+    cv.style.width=w+'px'; cv.style.height=h+'px';
+    var x=cv.getContext('2d');
+    x.setTransform(rr,0,0,rr,0,0);
+    return x;
+  }
+  var MW=596, MH=93, LP=24, TP=16, P=11, CELL=9;
   var mx=dpr(document.getElementById('gri-main'),MW,MH);
-  var KW=168,KH=96,kx=dpr(document.getElementById('gri-k'),KW,KH);
-  var EW=196,EH=96,ex=dpr(document.getElementById('gri-echo'),EW,EH);
+  var KW=168, KH=96, kx=dpr(document.getElementById('gri-k'),KW,KH);
+  var EW=196, EH=96, ex=dpr(document.getElementById('gri-echo'),EW,EH);
   var dayLab={1:'Mon',3:'Wed',5:'Fri'};
 
-  // Tooltip
+  // ====== TOOLTIP ======
   var tooltip=document.getElementById('gri-tooltip');
   var canvasEl=document.getElementById('gri-main');
 
@@ -129,43 +205,145 @@
   });
   canvasEl.addEventListener('mouseleave',hideTooltip);
 
-  function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
+  // ====== DRAWING FUNCTIONS ======
+  function rr(c,x,y,w,h,r){
+    c.beginPath();
+    c.moveTo(x+r,y);
+    c.arcTo(x+w,y,x+w,y+h,r);
+    c.arcTo(x+w,y+h,x,y+h,r);
+    c.arcTo(x,y+h,x,y,r);
+    c.arcTo(x,y,x+w,y,r);
+    c.closePath();
+  }
+
   function drawMain(frac){
-    mx.clearRect(0,0,MW,MH);var acq=frac*WEEKS;
-    mx.font='10px ui-monospace,monospace';mx.textBaseline='alphabetic';mx.fillStyle=C.dim;
-    // Draw month labels based on actual dates
+    mx.clearRect(0,0,MW,MH);
+    var acq=frac*WEEKS;
+
+    // Month labels
+    mx.font='10px ui-monospace,monospace';
+    mx.textBaseline='alphabetic';
+    mx.fillStyle=C.dim;
     for(var i=0;i<monthLabels.length;i++){
       var m=monthLabels[i];
-      mx.fillText(m.label,LP+m.week*P,11);
+      mx.fillText(m.label, LP+m.week*P, 11);
     }
+
+    // Day labels
     mx.textBaseline='middle';
-    for(var k in dayLab)mx.fillText(dayLab[k],0,TP+(+k)*P+CELL/2);
-    for(var w=0;w<WEEKS;w++)for(var d=0;d<DAYS;d++){var X=LP+w*P,Y=TP+d*P;mx.fillStyle=(acq>=w+1)?C.sig[data[w][d]]:C.unacq;rr(mx,X,Y,CELL,CELL,2);mx.fill();}
-    if(frac>0&&frac<1){var sxp=LP+acq*P;mx.save();mx.strokeStyle=C.accent;mx.lineWidth=1.5;mx.shadowColor='rgba(8,145,178,0.35)';mx.shadowBlur=6;mx.beginPath();mx.moveTo(sxp,TP-3);mx.lineTo(sxp,TP+DAYS*P-2);mx.stroke();mx.restore();}
+    for(var k in dayLab) mx.fillText(dayLab[k], 0, TP+(+k)*P+CELL/2);
+
+    // Cells
+    for(var w=0;w<WEEKS;w++){
+      for(var d=0;d<DAYS;d++){
+        var X=LP+w*P, Y=TP+d*P;
+        var isLetter=isGRI[w][d];
+        var level=grid[w][d];
+
+        if(acq>=w+1){
+          // Use GRI color for letters, normal sig for others
+          mx.fillStyle=isLetter ? C.gri[level] : C.sig[level];
+        }else{
+          mx.fillStyle=C.unacq;
+        }
+        rr(mx,X,Y,CELL,CELL,2);
+        mx.fill();
+      }
+    }
+
+    // Scan line
+    if(frac>0&&frac<1){
+      var sxp=LP+acq*P;
+      mx.save();
+      mx.strokeStyle=C.accent;
+      mx.lineWidth=1.5;
+      mx.shadowColor='rgba(8,145,178,0.35)';
+      mx.shadowBlur=6;
+      mx.beginPath();
+      mx.moveTo(sxp,TP-3);
+      mx.lineTo(sxp,TP+DAYS*P-2);
+      mx.stroke();
+      mx.restore();
+    }
   }
+
   function drawK(frac){
     kx.clearRect(0,0,KW,KH);
-    var acq=frac*WEEKS,gx=8,gy=20,gw=KW-16,gh=KH-32,cw=gw/WEEKS,ch=gh/DAYS;
-    for(var w=0;w<WEEKS;w++){var filled=acq>=w+1;for(var d=0;d<DAYS;d++){var v=filled?kmag[w][d]:0;if(filled){var intensity=Math.round(80+v*175);kx.fillStyle='rgb('+Math.round(intensity*0.4)+','+intensity+','+Math.round(intensity*0.9)+')';}else kx.fillStyle=C.unacq;kx.fillRect(gx+w*cw,gy+d*ch,Math.max(cw-0.3,0.8),ch-0.5);}}
-    kx.fillStyle=C.dim;kx.font='9px ui-monospace,monospace';kx.fillText('PE → (weeks)',8,KH-5);
+    var acq=frac*WEEKS;
+    var gx=8, gy=20, gw=KW-16, gh=KH-32;
+    var cw=gw/WEEKS, ch=gh/DAYS;
+
+    for(var w=0;w<WEEKS;w++){
+      var filled=acq>=w+1;
+      for(var d=0;d<DAYS;d++){
+        var v=filled?kmag[w][d]:0;
+        if(filled){
+          var intensity=Math.round(80+v*175);
+          kx.fillStyle='rgb('+Math.round(intensity*0.4)+','+intensity+','+Math.round(intensity*0.9)+')';
+        }else{
+          kx.fillStyle=C.unacq;
+        }
+        kx.fillRect(gx+w*cw, gy+d*ch, Math.max(cw-0.3,0.8), ch-0.5);
+      }
+    }
+    kx.fillStyle=C.dim;
+    kx.font='9px ui-monospace,monospace';
+    kx.fillText('PE → (weeks)', 8, KH-5);
   }
+
   function drawEcho(frac){
     ex.clearRect(0,0,EW,EH);
-    var acq=frac*WEEKS,w=Math.min(WEEKS-1,Math.floor(acq)),A=0;for(var d=0;d<DAYS;d++)A+=kmag[w][d];A=Math.min(1,A/2.2);
-    var x0=8,x1=EW-8,y0=22,y1=EH-14,cx=(x0+x1)/2,baseY=(y0+y1)/2+6;
-    ex.strokeStyle='#cbd5e1';ex.setLineDash([3,3]);ex.lineWidth=1;ex.beginPath();ex.moveTo(cx,y0);ex.lineTo(cx,y1);ex.stroke();ex.setLineDash([]);
-    ex.fillStyle=C.dim;ex.font='9px ui-monospace,monospace';ex.fillText('TE',cx+3,y1);
-    var sig=14,freq=0.55,amp=(baseY-y0)*0.92*(0.14+0.86*A);
-    ex.strokeStyle=C.accent;ex.lineWidth=1.4;ex.beginPath();
-    for(var x=x0;x<=x1;x++){var t=x-cx,env=Math.exp(-(t*t)/(2*sig*sig)),y=baseY-amp*env*Math.cos(t*freq);if(x===x0)ex.moveTo(x,y);else ex.lineTo(x,y);}
+    var acq=frac*WEEKS;
+    var w=Math.min(WEEKS-1, Math.floor(acq));
+    var A=0;
+    for(var d=0;d<DAYS;d++) A+=kmag[w][d];
+    A=Math.min(1, A/2.2);
+
+    var x0=8, x1=EW-8, y0=22, y1=EH-14;
+    var cx=(x0+x1)/2, baseY=(y0+y1)/2+6;
+
+    ex.strokeStyle='#cbd5e1';
+    ex.setLineDash([3,3]);
+    ex.lineWidth=1;
+    ex.beginPath();
+    ex.moveTo(cx,y0);
+    ex.lineTo(cx,y1);
+    ex.stroke();
+    ex.setLineDash([]);
+
+    ex.fillStyle=C.dim;
+    ex.font='9px ui-monospace,monospace';
+    ex.fillText('TE', cx+3, y1);
+
+    var sig=14, freq=0.55;
+    var amp=(baseY-y0)*0.92*(0.14+0.86*A);
+    ex.strokeStyle=C.accent;
+    ex.lineWidth=1.4;
+    ex.beginPath();
+    for(var x=x0;x<=x1;x++){
+      var t=x-cx;
+      var env=Math.exp(-(t*t)/(2*sig*sig));
+      var y=baseY-amp*env*Math.cos(t*freq);
+      if(x===x0) ex.moveTo(x,y);
+      else ex.lineTo(x,y);
+    }
     ex.stroke();
   }
-  var statusEl=document.getElementById('gri-status'),peEl=document.getElementById('gri-pe'),trEl=document.getElementById('gri-tr'),totalEl=document.getElementById('gri-total');
+
+  // ====== HUD ======
+  var statusEl=document.getElementById('gri-status');
+  var peEl=document.getElementById('gri-pe');
+  var trEl=document.getElementById('gri-tr');
+  var totalEl=document.getElementById('gri-total');
+
   function calcSignal(pe){
     var sig=0;
-    for(var w=0;w<pe&&w<WEEKS;w++)for(var d=0;d<DAYS;d++)sig+=counts[w][d];
+    for(var w=0;w<pe&&w<WEEKS;w++)
+      for(var d=0;d<DAYS;d++)
+        sig+=counts[w][d];
     return sig;
   }
+
   function setHUD(mode,pe){
     statusEl.textContent=mode==='ACQ'?'ACQUIRING':(mode==='REC'?'RECON · iFFT':'SCAN COMPLETE');
     statusEl.style.color=mode==='DONE'?'#059669':(mode==='REC'?'#0891b2':'#0f766e');
@@ -174,20 +352,62 @@
     var sig=calcSignal(pe);
     totalEl.textContent=sig+' au';
   }
-  var SCAN=6000,RECON=900,DONE=2400,CYC=SCAN+RECON+DONE,acc=0,last=null,running=true;
+
+  // ====== ANIMATION LOOP ======
+  var SCAN=6000, RECON=900, DONE=2400;
+  var CYC=SCAN+RECON+DONE;
+  var acc=0, last=null, running=true;
+
   function tick(ts){
-    if(last==null)last=ts;if(running)acc+=ts-last;last=ts;var e=acc%CYC,frac,mode;
-    if(e<SCAN){frac=e/SCAN;mode='ACQ';}else if(e<SCAN+RECON){frac=1;mode='REC';}else{frac=1;mode='DONE';}
+    if(last==null) last=ts;
+    if(running) acc+=ts-last;
+    last=ts;
+
+    var e=acc%CYC, frac, mode;
+    if(e<SCAN){frac=e/SCAN; mode='ACQ';}
+    else if(e<SCAN+RECON){frac=1; mode='REC';}
+    else{frac=1; mode='DONE';}
+
     drawMain(frac);
-    if(mode==='REC'){var p=(e-SCAN)/RECON,xp=LP+p*WEEKS*P;mx.save();mx.fillStyle='rgba(8,145,178,0.08)';mx.fillRect(LP,TP-2,Math.max(0,xp-LP),DAYS*P);mx.strokeStyle='rgba(8,145,178,0.6)';mx.lineWidth=2;mx.shadowColor='rgba(8,145,178,0.2)';mx.shadowBlur=8;mx.beginPath();mx.moveTo(xp,TP-3);mx.lineTo(xp,TP+DAYS*P-2);mx.stroke();mx.restore();}
-    drawK(frac);drawEcho(frac);
-    var pe=mode==='ACQ'?Math.min(WEEKS,Math.ceil(frac*WEEKS)):WEEKS;setHUD(mode,pe);
+
+    if(mode==='REC'){
+      var p=(e-SCAN)/RECON;
+      var xp=LP+p*WEEKS*P;
+      mx.save();
+      mx.fillStyle='rgba(8,145,178,0.08)';
+      mx.fillRect(LP,TP-2,Math.max(0,xp-LP),DAYS*P);
+      mx.strokeStyle='rgba(8,145,178,0.6)';
+      mx.lineWidth=2;
+      mx.shadowColor='rgba(8,145,178,0.2)';
+      mx.shadowBlur=8;
+      mx.beginPath();
+      mx.moveTo(xp,TP-3);
+      mx.lineTo(xp,TP+DAYS*P-2);
+      mx.stroke();
+      mx.restore();
+    }
+
+    drawK(frac);
+    drawEcho(frac);
+
+    var pe=mode==='ACQ'?Math.min(WEEKS,Math.ceil(frac*WEEKS)):WEEKS;
+    setHUD(mode,pe);
+
     requestAnimationFrame(tick);
   }
+
+  // ====== CONTROLS ======
   var playBtn=document.getElementById('gri-play');
-  function updPlay(){var isPause=running;var svg=isPause?'<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>':'<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21"/></svg>';playBtn.innerHTML=svg;}
+  function updPlay(){
+    var isPause=running;
+    var svg=isPause?
+      '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>':
+      '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21"/></svg>';
+    playBtn.innerHTML=svg;
+  }
   playBtn.onclick=function(){running=!running;updPlay();};
   document.getElementById('gri-rescan').onclick=function(){acc=0;running=true;updPlay();};
+
   requestAnimationFrame(tick);
 })();
 </script>
