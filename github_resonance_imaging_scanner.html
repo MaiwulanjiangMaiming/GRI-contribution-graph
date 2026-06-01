@@ -84,7 +84,7 @@
   for(var w=0;w<WEEKS;w++){data[w]=[];kmag[w]=[];dates[w]=[];counts[w]=[];for(var d=0;d<DAYS;d++){var r=rnd();var lv=r>0.82?2:(r>0.55?1:0);data[w][d]=lv;counts[w][d]=Math.floor(r*10);var sw=6.0,sd=2.0;kmag[w][d]=Math.exp(-Math.pow(w-25.5,2)/(2*sw*sw))*Math.exp(-Math.pow(d-3,2)/(2*sd*sd))*(0.85+0.3*rnd());var dayDate=new Date(today);dayDate.setDate(today.getDate()-((51-w)*7+(6-d)));dates[w][d]=dayDate.toISOString().split('T')[0];}}
   var letters=['G','R','I'],sx=17;
   for(var li=0;li<3;li++){var g=GL[letters[li]];for(var cy=0;cy<7;cy++){var row=g[cy];for(var cx=0;cx<5;cx++){if(row[cx]==='1'){var ww=sx+cx;if(ww<WEEKS)data[ww][cy]=(rnd()>0.35?4:3);}}}sx+=6;}
-  var total=0;for(var a=0;a<WEEKS;a++)for(var b=0;b<DAYS;b++)total+=data[a][b];
+  var total=0;for(var a=0;a<WEEKS;a++)for(var b=0;b<DAYS;b++)total+=counts[a][b];
 
   // Calculate month positions from actual dates
   var months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -107,7 +107,7 @@
     var count=counts[w][d];
     var date=dates[w][d];
     if(!date)return;
-    tooltip.innerHTML='<strong>'+count+'</strong> contributions on <strong>'+date+'</strong>';
+    tooltip.innerHTML='<strong>'+count+'</strong> echo on <strong>'+date+'</strong>';
     tooltip.style.opacity='1';
     updateTooltipPos(e);
   }

@@ -221,7 +221,7 @@ function generateSVGGRI(grid, dates, counts, theme = 'dark', username = 'user') 
       <rect x="${x}" y="${y}" width="${CELL}" height="${CELL}" rx="2" fill="${fill}">
         <animate attributeName="opacity" values="0;1" dur="0.3s" begin="${delay}s" fill="freeze"/>
       </rect>
-      <title>${count} contributions on ${date}</title>
+      <title>${count} echo on ${date}</title>
     </g>\n`;
     }
   }
@@ -429,7 +429,7 @@ async function generateHTML(theme, grid, kmag, dates, counts) {
     var C = {accent:'${C.accent}',dim:'${C.dim}',sig:${JSON.stringify(C.sig)},unacq:'${C.unacq}'};
     var WEEKS=52,DAYS=7;
     var total=0;
-    for(var a=0;a<WEEKS;a++)for(var b=0;b<DAYS;b++)total+=GRID[a][b];
+    for(var a=0;a<WEEKS;a++)for(var b=0;b<DAYS;b++)total+=COUNTS[a][b];
 
     function dpr(cv,w,h){var rr=window.devicePixelRatio||1;cv.width=w*rr;cv.height=h*rr;cv.style.width=w+'px';cv.style.height=h+'px';var x=cv.getContext('2d');x.setTransform(rr,0,0,rr,0,0);return x;}
     var MW=596,MH=93,LP=24,TP=16,P=11,CELL=9;

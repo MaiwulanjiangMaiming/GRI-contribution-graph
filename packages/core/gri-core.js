@@ -230,7 +230,7 @@
       <rect x="${x}" y="${y}" width="${CELL}" height="${CELL}" rx="2" fill="${fill}">
         <animate attributeName="opacity" values="0;1" dur="0.3s" begin="${delay}s" fill="freeze"/>
       </rect>
-      <title>${count} contributions on ${date}</title>
+      <title>${count} echo on ${date}</title>
     </g>\n`;
       }
     }
@@ -462,7 +462,7 @@ ${title}
       this.total = 0;
       for (let w = 0; w < 52; w++) {
         for (let d = 0; d < 7; d++) {
-          this.total += data.grid[w][d];
+          this.total += data.counts[w][d];
         }
       }
     }
