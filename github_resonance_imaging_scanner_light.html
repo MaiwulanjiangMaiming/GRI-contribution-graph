@@ -26,8 +26,11 @@
       <span style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:3px 8px;color:#64748b;white-space:nowrap;">Slice <span style="color:#0891b2;font-weight:600;">main</span></span>
     </div>
 
+    <!-- Tooltip -->
+    <div id="gri-tooltip" style="position:fixed;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:6px 10px;font-size:11px;color:#1e293b;pointer-events:none;opacity:0;transition:opacity 0.15s ease;z-index:1000;white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,0.1);"></div>
+
     <!-- Main Canvas -->
-    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px;">
+    <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px;position:relative;">
       <canvas id="gri-main" style="display:block;"></canvas>
     </div>
 
@@ -76,24 +79,65 @@
   function mul(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
   var rnd=mul(20260531);
   var GL={G:["01110","10001","10000","10011","10001","10001","01110"],R:["11110","10001","10001","11110","10100","10010","10001"],I:["11111","00100","00100","00100","00100","00100","11111"]};
-  var data=[],kmag=[];
-  for(var w=0;w<WEEKS;w++){data[w]=[];kmag[w]=[];for(var d=0;d<DAYS;d++){var r=rnd();var lv=r>0.82?2:(r>0.55?1:0);data[w][d]=lv;var sw=6.0,sd=2.0;kmag[w][d]=Math.exp(-Math.pow(w-25.5,2)/(2*sw*sw))*Math.exp(-Math.pow(d-3,2)/(2*sd*sd))*(0.85+0.3*rnd());}}
+  var data=[],kmag=[],dates=[],counts=[];
+  var today=new Date();
+  for(var w=0;w<WEEKS;w++){data[w]=[];kmag[w]=[];dates[w]=[];counts[w]=[];for(var d=0;d<DAYS;d++){var r=rnd();var c=Math.floor(r*20);counts[w][d]=c;data[w][d]=c===0?0:c<=3?1:c<=6?2:c<=10?3:4;kmag[w][d]=c/20;var dayDate=new Date(today);dayDate.setDate(today.getDate()-((51-w)*7+(6-d)));dates[w][d]=dayDate.toISOString().split('T')[0];}}
   var letters=['G','R','I'],sx=17;
-  for(var li=0;li<3;li++){var g=GL[letters[li]];for(var cy=0;cy<7;cy++){var row=g[cy];for(var cx=0;cx<5;cx++){if(row[cx]==='1'){var ww=sx+cx;if(ww<WEEKS)data[ww][cy]=(rnd()>0.35?4:3);}}}sx+=6;}
-  var total=0;for(var a=0;a<WEEKS;a++)for(var b=0;b<DAYS;b++)total+=data[a][b];
+  for(var li=0;li<3;li++){var g=GL[letters[li]];for(var cy=0;cy<7;cy++){var row=g[cy];for(var cx=0;cx<5;cx++){if(row[cx]==='1'){var ww=sx+cx;if(ww<WEEKS){data[ww][cy]=(rnd()>0.35?4:3);counts[ww][cy]=Math.floor((rnd()*0.5+0.5)*20);kmag[ww][cy]=counts[ww][cy]/20;}}}sx+=6;}}
+  var total=0;for(var a=0;a<WEEKS;a++)for(var b=0;b<DAYS;b++)total+=counts[a][b];
+
+  // Calculate month positions from actual dates
+  var months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var monthLabels=[];
+  var seenMonths=new Set();
+  for(var w=0;w<dates.length;w++){for(var d=0;d<7;d++){if(!dates[w][d])continue;var date=new Date(dates[w][d]);var month=date.getMonth();var day=date.getDate();if(day<=7&&!seenMonths.has(month)){seenMonths.add(month);monthLabels.push({month:month,week:w,label:months[month]});}}}
+
   function dpr(cv,w,h){var rr=window.devicePixelRatio||1;cv.width=w*rr;cv.height=h*rr;cv.style.width=w+'px';cv.style.height=h+'px';var x=cv.getContext('2d');x.setTransform(rr,0,0,rr,0,0);return x;}
   var MW=596,MH=93,LP=24,TP=16,P=11,CELL=9;
   var mx=dpr(document.getElementById('gri-main'),MW,MH);
   var KW=168,KH=96,kx=dpr(document.getElementById('gri-k'),KW,KH);
   var EW=196,EH=96,ex=dpr(document.getElementById('gri-echo'),EW,EH);
-  var months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  var mPos=[0,4,9,13,17,22,26,30,35,39,44,48];
   var dayLab={1:'Mon',3:'Wed',5:'Fri'};
+
+  // Tooltip
+  var tooltip=document.getElementById('gri-tooltip');
+  var canvasEl=document.getElementById('gri-main');
+
+  function showTooltip(e,w,d){
+    var count=counts[w][d];
+    var date=dates[w][d];
+    if(!date)return;
+    tooltip.innerHTML='<strong>'+count+'</strong> echo on <strong>'+date+'</strong>';
+    tooltip.style.opacity='1';
+    updateTooltipPos(e);
+  }
+  function hideTooltip(){tooltip.style.opacity='0';}
+  function updateTooltipPos(e){
+    tooltip.style.left=(e.clientX+10)+'px';
+    tooltip.style.top=(e.clientY-30)+'px';
+  }
+  canvasEl.addEventListener('mousemove',function(e){
+    var rect=canvasEl.getBoundingClientRect();
+    var x=e.clientX-rect.left;
+    var y=e.clientY-rect.top;
+    var w=Math.floor((x-LP)/P);
+    var d=Math.floor((y-TP)/P);
+    if(w>=0&&w<WEEKS&&d>=0&&d<DAYS&&dates[w][d]){
+      showTooltip(e,w,d);
+      canvasEl.style.cursor='pointer';
+    }else{hideTooltip();canvasEl.style.cursor='default';}
+  });
+  canvasEl.addEventListener('mouseleave',hideTooltip);
+
   function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
   function drawMain(frac){
     mx.clearRect(0,0,MW,MH);var acq=frac*WEEKS;
     mx.font='10px ui-monospace,monospace';mx.textBaseline='alphabetic';mx.fillStyle=C.dim;
-    for(var i=0;i<12;i++)mx.fillText(months[i],LP+mPos[i]*P,11);
+    // Draw month labels based on actual dates
+    for(var i=0;i<monthLabels.length;i++){
+      var m=monthLabels[i];
+      mx.fillText(m.label,LP+m.week*P,11);
+    }
     mx.textBaseline='middle';
     for(var k in dayLab)mx.fillText(dayLab[k],0,TP+(+k)*P+CELL/2);
     for(var w=0;w<WEEKS;w++)for(var d=0;d<DAYS;d++){var X=LP+w*P,Y=TP+d*P;mx.fillStyle=(acq>=w+1)?C.sig[data[w][d]]:C.unacq;rr(mx,X,Y,CELL,CELL,2);mx.fill();}
@@ -117,7 +161,19 @@
     ex.stroke();
   }
   var statusEl=document.getElementById('gri-status'),peEl=document.getElementById('gri-pe'),trEl=document.getElementById('gri-tr'),totalEl=document.getElementById('gri-total');
-  function setHUD(mode,pe){statusEl.textContent=mode==='ACQ'?'ACQUIRING':(mode==='REC'?'RECON · iFFT':'SCAN COMPLETE');statusEl.style.color=mode==='DONE'?'#059669':(mode==='REC'?'#0891b2':'#0f766e');peEl.textContent=pe+' / '+WEEKS;trEl.textContent=pe+' wk';totalEl.textContent=(mode==='DONE'||mode==='REC')?total+' au':'— au';}
+  function calcSignal(pe){
+    var sig=0;
+    for(var w=0;w<pe&&w<WEEKS;w++)for(var d=0;d<DAYS;d++)sig+=counts[w][d];
+    return sig;
+  }
+  function setHUD(mode,pe){
+    statusEl.textContent=mode==='ACQ'?'ACQUIRING':(mode==='REC'?'RECON · iFFT':'SCAN COMPLETE');
+    statusEl.style.color=mode==='DONE'?'#059669':(mode==='REC'?'#0891b2':'#0f766e');
+    peEl.textContent=pe+' / '+WEEKS;
+    trEl.textContent=pe+' wk';
+    var sig=calcSignal(pe);
+    totalEl.textContent=sig+' au';
+  }
   var SCAN=6000,RECON=900,DONE=2400,CYC=SCAN+RECON+DONE,acc=0,last=null,running=true;
   function tick(ts){
     if(last==null)last=ts;if(running)acc+=ts-last;last=ts;var e=acc%CYC,frac,mode;
