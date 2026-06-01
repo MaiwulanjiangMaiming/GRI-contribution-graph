@@ -110,6 +110,32 @@ async function fetchContributions(username, token) {
     counts.push(new Array(7).fill(0));
   }
 
+  // Apply GRI letter overlay
+  const GL = {
+    G: ['01110', '10001', '10000', '10011', '10001', '10001', '01110'],
+    R: ['11110', '10001', '10001', '11110', '10100', '10010', '10001'],
+    I: ['11111', '00100', '00100', '00100', '00100', '00100', '11111']
+  };
+  const letters = ['G', 'R', 'I'];
+  let sx = 17;
+  for (let li = 0; li < 3; li++) {
+    const g = GL[letters[li]];
+    for (let cy = 0; cy < 7; cy++) {
+      const row = g[cy];
+      for (let cx = 0; cx < 5; cx++) {
+        if (row[cx] === '1') {
+          const ww = sx + cx;
+          if (ww < 52 && cy < 7) {
+            grid[ww][cy] = 4;
+            counts[ww][cy] = 15 + Math.floor(Math.random() * 5);
+            kmag[ww][cy] = counts[ww][cy] / 20;
+          }
+        }
+      }
+    }
+    sx += 6;
+  }
+
   return { grid, kmag, dates, counts };
 }
 

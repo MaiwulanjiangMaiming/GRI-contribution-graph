@@ -513,6 +513,9 @@ ${title}
               const ww = sx + cx;
               if (ww < 52 && cy < 7) {
                 this.isGRI[ww][cy] = true;
+                data.grid[ww][cy] = 4;
+                data.counts[ww][cy] = 15 + Math.floor(Math.random() * 5);
+                data.kmag[ww][cy] = data.counts[ww][cy] / 20;
               }
             }
           }

@@ -136,6 +136,8 @@
           if(ww<WEEKS && cy<DAYS){
             isGRI[ww][cy]=true;
             grid[ww][cy]=4; // Force max brightness for GRI letters
+            counts[ww][cy]=15+Math.floor(rnd()*5); // High contribution count for GRI
+            kmag[ww][cy]=counts[ww][cy]/20;
           }
         }
       }
