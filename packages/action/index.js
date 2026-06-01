@@ -3,7 +3,10 @@ const path = require('node:path');
 
 const githubUserName = process.env.GITHUB_USER_NAME;
 const githubToken = process.env.GITHUB_TOKEN;
-const outputsRaw = (process.env.OUTPUTS || '').split('\n').map(s => s.trim()).filter(Boolean);
+const outputsRaw = (process.env.OUTPUTS || '')
+  .split(/\r?\n/)
+  .map(s => s.trim())
+  .filter(Boolean);
 
 if (!githubUserName) {
   console.error('GITHUB_USER_NAME is required');
@@ -66,8 +69,8 @@ async function fetchContributions(username, token) {
 
   const grid = [];
   const kmag = [];
-  const dates = []; // Store actual dates for tooltips
-  const counts = []; // Store actual contribution counts
+  const dates = [];
+  const counts = [];
 
   for (let w = 0; w < weeks.length; w++) {
     grid[w] = [];
@@ -100,7 +103,6 @@ async function fetchContributions(username, token) {
     }
   }
 
-  // Pad to 52 weeks
   while (grid.length < 52) {
     grid.push(new Array(7).fill(0));
     kmag.push(new Array(7).fill(0));
@@ -140,7 +142,6 @@ function generateFakeData() {
       kmag[w][d] = rnd();
       counts[w][d] = Math.floor(r * 10);
       
-      // Generate fake dates (going back from today)
       const dayDate = new Date(today);
       dayDate.setDate(today.getDate() - ((51 - w) * 7 + (6 - d)));
       dates[w][d] = dayDate.toISOString().split('T')[0];
@@ -150,10 +151,10 @@ function generateFakeData() {
   return { grid, kmag, dates, counts };
 }
 
-// Calculate month positions based on actual dates
 function calculateMonthPositions(dates) {
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const monthLabels = [];
+  const seenMonths = new Set();
   
   for (let w = 0; w < dates.length; w++) {
     for (let d = 0; d < 7; d++) {
@@ -162,12 +163,10 @@ function calculateMonthPositions(dates) {
       const month = date.getMonth();
       const day = date.getDate();
       
-      // Mark first occurrence of each month (around day 1-7)
-      if (day <= 7) {
-        const existing = monthLabels.find(m => m.month === month);
-        if (!existing) {
-          monthLabels.push({ month, week: w, label: months[month] });
-        }
+      // Only mark the first occurrence of each month (first day 1-7 of that month)
+      if (day <= 7 && !seenMonths.has(month)) {
+        seenMonths.add(month);
+        monthLabels.push({ month, week: w, label: months[month] });
       }
     }
   }
@@ -191,8 +190,6 @@ function generateSVGGRI(grid, dates, counts, theme = 'dark', username = 'user') 
       sig: ['#122a1e', '#1f5c3a', '#2f9c5b', '#46d07e', '#86f2b0'],
       unacq: '#0d141b',
       text: '#8b949e',
-      tooltipBg: '#161b22',
-      tooltipBorder: '#30363d',
     },
     light: {
       bg: '#ffffff',
@@ -200,19 +197,15 @@ function generateSVGGRI(grid, dates, counts, theme = 'dark', username = 'user') 
       sig: ['#e2e8f0', '#99f6e4', '#5eead4', '#2dd4bf', '#14b8a6'],
       unacq: '#f1f5f9',
       text: '#656d76',
-      tooltipBg: '#f6f8fa',
-      tooltipBorder: '#d0d7de',
     },
   };
 
-  const C = colors[theme];
+  const C = colors[theme] || colors.dark;
   const width = LP + WEEKS * (CELL + GAP) + PAD;
   const height = TP + DAYS * (CELL + GAP) + PAD + 40;
 
-  // Calculate actual month positions
   const monthLabels = calculateMonthPositions(dates);
 
-  // Build contribution cells with tooltips
   let cells = '';
   for (let w = 0; w < WEEKS; w++) {
     for (let d = 0; d < DAYS; d++) {
@@ -233,14 +226,12 @@ function generateSVGGRI(grid, dates, counts, theme = 'dark', username = 'user') 
     }
   }
 
-  // Month labels based on actual dates
   let monthLabelsSVG = '';
   for (const m of monthLabels) {
     const x = LP + m.week * (CELL + GAP);
     monthLabelsSVG += `    <text x="${x}" y="${TP - 8}" fill="${C.text}" font-size="10" font-family="ui-monospace,monospace">${m.label}</text>\n`;
   }
 
-  // Day labels
   const dayLab = { 1: 'Mon', 3: 'Wed', 5: 'Fri' };
   let dayLabels = '';
   for (const k in dayLab) {
@@ -248,7 +239,6 @@ function generateSVGGRI(grid, dates, counts, theme = 'dark', username = 'user') 
     dayLabels += `    <text x="${LP - 8}" y="${y}" fill="${C.text}" font-size="9" font-family="ui-monospace,monospace" text-anchor="end">${dayLab[k]}</text>\n`;
   }
 
-  // Scan line animation
   const scanLine = `
     <line x1="${LP}" y1="${TP - 5}" x2="${LP}" y2="${TP + DAYS * (CELL + GAP)}" 
           stroke="${C.accent}" stroke-width="2" opacity="0.8">
@@ -317,7 +307,6 @@ async function generateHTML(theme, grid, kmag, dates, counts) {
   const datesJSON = JSON.stringify(dates);
   const countsJSON = JSON.stringify(counts);
 
-  // Calculate month positions for HTML
   const monthLabels = calculateMonthPositions(dates);
   const monthLabelsJSON = JSON.stringify(monthLabels);
 
@@ -449,7 +438,6 @@ async function generateHTML(theme, grid, kmag, dates, counts) {
     var EW=196,EH=96,ex=dpr(document.getElementById('gri-echo'),EW,EH);
     var dayLab={1:'Mon',3:'Wed',5:'Fri'};
     
-    // Tooltip
     var tooltip = document.getElementById('tooltip');
     var canvasEl = document.getElementById('gri-main');
     
@@ -497,7 +485,6 @@ async function generateHTML(theme, grid, kmag, dates, counts) {
       mx.clearRect(0,0,MW,MH);var acq=frac*WEEKS;
       mx.font='10px ui-monospace,monospace';mx.textBaseline='alphabetic';mx.fillStyle=C.dim;
       
-      // Draw month labels based on actual dates
       for(var i=0;i<MONTH_LABELS.length;i++){
         var m = MONTH_LABELS[i];
         mx.fillText(m.label, LP + m.week * P, 11);
@@ -575,15 +562,21 @@ async function generateHTML(theme, grid, kmag, dates, counts) {
     }
 
     for (const out of outputs) {
-      const html = await generateHTML(out.theme, grid, kmag, dates, counts);
-      fs.mkdirSync(path.dirname(out.filename), { recursive: true });
-      fs.writeFileSync(out.filename, html);
-      console.log(`Generated HTML: ${out.filename}`);
-
-      const svgFilename = out.filename.replace('.html', '.svg');
-      const svg = generateSVGGRI(grid, dates, counts, out.theme, githubUserName);
-      fs.writeFileSync(svgFilename, svg);
-      console.log(`Generated SVG: ${svgFilename}`);
+      const ext = path.extname(out.filename).toLowerCase();
+      
+      if (ext === '.svg') {
+        // Generate SVG
+        const svg = generateSVGGRI(grid, dates, counts, out.theme, githubUserName);
+        fs.mkdirSync(path.dirname(out.filename), { recursive: true });
+        fs.writeFileSync(out.filename, svg);
+        console.log(`Generated SVG: ${out.filename}`);
+      } else {
+        // Generate HTML (default)
+        const html = await generateHTML(out.theme, grid, kmag, dates, counts);
+        fs.mkdirSync(path.dirname(out.filename), { recursive: true });
+        fs.writeFileSync(out.filename, html);
+        console.log(`Generated HTML: ${out.filename}`);
+      }
     }
 
     console.log('GRI generation complete!');
