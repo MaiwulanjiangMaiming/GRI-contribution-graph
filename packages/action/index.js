@@ -12,7 +12,6 @@ if (!githubUserName) {
 
 console.log(`Generating GRI visualization for: ${githubUserName}`);
 
-// Parse output options
 const outputs = outputsRaw.map(line => {
   const [filename, query] = line.split('?');
   const params = new URLSearchParams(query || '');
@@ -23,7 +22,6 @@ const outputs = outputsRaw.map(line => {
   };
 });
 
-// Ensure dist directory exists
 fs.mkdirSync('dist', { recursive: true });
 
 async function fetchContributions(username, token) {
@@ -68,10 +66,14 @@ async function fetchContributions(username, token) {
 
   const grid = [];
   const kmag = [];
+  const dates = []; // Store actual dates for tooltips
+  const counts = []; // Store actual contribution counts
 
   for (let w = 0; w < weeks.length; w++) {
     grid[w] = [];
     kmag[w] = [];
+    dates[w] = [];
+    counts[w] = [];
     const days = weeks[w].contributionDays;
     const maxCount = Math.max(...days.map(d => d.contributionCount), 1);
 
@@ -87,19 +89,26 @@ async function fetchContributions(username, token) {
         };
         grid[w][d] = levelMap[day.contributionLevel] ?? 0;
         kmag[w][d] = day.contributionCount / maxCount;
+        dates[w][d] = day.date;
+        counts[w][d] = day.contributionCount;
       } else {
         grid[w][d] = 0;
         kmag[w][d] = 0;
+        dates[w][d] = '';
+        counts[w][d] = 0;
       }
     }
   }
 
+  // Pad to 52 weeks
   while (grid.length < 52) {
     grid.push(new Array(7).fill(0));
     kmag.push(new Array(7).fill(0));
+    dates.push(new Array(7).fill(''));
+    counts.push(new Array(7).fill(0));
   }
 
-  return { grid, kmag };
+  return { grid, kmag, dates, counts };
 }
 
 function generateFakeData() {
@@ -116,21 +125,57 @@ function generateFakeData() {
   const rnd = mulberry32(20260531);
   const grid = [];
   const kmag = [];
+  const dates = [];
+  const counts = [];
 
+  const today = new Date();
   for (let w = 0; w < 52; w++) {
     grid[w] = [];
     kmag[w] = [];
+    dates[w] = [];
+    counts[w] = [];
     for (let d = 0; d < 7; d++) {
       const r = rnd();
       grid[w][d] = r > 0.82 ? 2 : r > 0.55 ? 1 : 0;
       kmag[w][d] = rnd();
+      counts[w][d] = Math.floor(r * 10);
+      
+      // Generate fake dates (going back from today)
+      const dayDate = new Date(today);
+      dayDate.setDate(today.getDate() - ((51 - w) * 7 + (6 - d)));
+      dates[w][d] = dayDate.toISOString().split('T')[0];
     }
   }
 
-  return { grid, kmag };
+  return { grid, kmag, dates, counts };
 }
 
-function generateSVGGRI(grid, theme = 'dark', username = 'user') {
+// Calculate month positions based on actual dates
+function calculateMonthPositions(dates) {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const monthLabels = [];
+  
+  for (let w = 0; w < dates.length; w++) {
+    for (let d = 0; d < 7; d++) {
+      if (!dates[w][d]) continue;
+      const date = new Date(dates[w][d]);
+      const month = date.getMonth();
+      const day = date.getDate();
+      
+      // Mark first occurrence of each month (around day 1-7)
+      if (day <= 7) {
+        const existing = monthLabels.find(m => m.month === month);
+        if (!existing) {
+          monthLabels.push({ month, week: w, label: months[month] });
+        }
+      }
+    }
+  }
+  
+  return monthLabels;
+}
+
+function generateSVGGRI(grid, dates, counts, theme = 'dark', username = 'user') {
   const WEEKS = 52;
   const DAYS = 7;
   const CELL = 11;
@@ -142,19 +187,21 @@ function generateSVGGRI(grid, theme = 'dark', username = 'user') {
   const colors = {
     dark: {
       bg: '#0d1117',
-      grid: '#161b22',
       accent: '#45e0d8',
       sig: ['#122a1e', '#1f5c3a', '#2f9c5b', '#46d07e', '#86f2b0'],
       unacq: '#0d141b',
       text: '#8b949e',
+      tooltipBg: '#161b22',
+      tooltipBorder: '#30363d',
     },
     light: {
       bg: '#ffffff',
-      grid: '#f6f8fa',
       accent: '#0891b2',
       sig: ['#e2e8f0', '#99f6e4', '#5eead4', '#2dd4bf', '#14b8a6'],
       unacq: '#f1f5f9',
       text: '#656d76',
+      tooltipBg: '#f6f8fa',
+      tooltipBorder: '#d0d7de',
     },
   };
 
@@ -162,7 +209,10 @@ function generateSVGGRI(grid, theme = 'dark', username = 'user') {
   const width = LP + WEEKS * (CELL + GAP) + PAD;
   const height = TP + DAYS * (CELL + GAP) + PAD + 40;
 
-  // Build contribution cells with scan animation
+  // Calculate actual month positions
+  const monthLabels = calculateMonthPositions(dates);
+
+  // Build contribution cells with tooltips
   let cells = '';
   for (let w = 0; w < WEEKS; w++) {
     for (let d = 0; d < DAYS; d++) {
@@ -170,21 +220,24 @@ function generateSVGGRI(grid, theme = 'dark', username = 'user') {
       const y = TP + d * (CELL + GAP);
       const level = grid[w]?.[d] ?? 0;
       const fill = C.sig[level] || C.unacq;
-      // Staggered fade-in animation based on week position
+      const date = dates[w]?.[d] || '';
+      const count = counts[w]?.[d] ?? 0;
       const delay = w * 0.05;
-      cells += `    <rect x="${x}" y="${y}" width="${CELL}" height="${CELL}" rx="2" fill="${fill}">
-      <animate attributeName="opacity" values="0;1" dur="0.3s" begin="${delay}s" fill="freeze"/>
-    </rect>\n`;
+      
+      cells += `    <g class="cell-group">
+      <rect x="${x}" y="${y}" width="${CELL}" height="${CELL}" rx="2" fill="${fill}">
+        <animate attributeName="opacity" values="0;1" dur="0.3s" begin="${delay}s" fill="freeze"/>
+      </rect>
+      <title>${count} contributions on ${date}</title>
+    </g>\n`;
     }
   }
 
-  // Month labels
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const mPos = [0, 4, 9, 13, 17, 22, 26, 30, 35, 39, 44, 48];
-  let monthLabels = '';
-  for (let i = 0; i < 12; i++) {
-    const x = LP + mPos[i] * (CELL + GAP);
-    monthLabels += `    <text x="${x}" y="${TP - 8}" fill="${C.text}" font-size="10" font-family="ui-monospace,monospace">${months[i]}</text>\n`;
+  // Month labels based on actual dates
+  let monthLabelsSVG = '';
+  for (const m of monthLabels) {
+    const x = LP + m.week * (CELL + GAP);
+    monthLabelsSVG += `    <text x="${x}" y="${TP - 8}" fill="${C.text}" font-size="10" font-family="ui-monospace,monospace">${m.label}</text>\n`;
   }
 
   // Day labels
@@ -195,7 +248,7 @@ function generateSVGGRI(grid, theme = 'dark', username = 'user') {
     dayLabels += `    <text x="${LP - 8}" y="${y}" fill="${C.text}" font-size="9" font-family="ui-monospace,monospace" text-anchor="end">${dayLab[k]}</text>\n`;
   }
 
-  // Scan line animation (sweeps left to right)
+  // Scan line animation
   const scanLine = `
     <line x1="${LP}" y1="${TP - 5}" x2="${LP}" y2="${TP + DAYS * (CELL + GAP)}" 
           stroke="${C.accent}" stroke-width="2" opacity="0.8">
@@ -203,7 +256,6 @@ function generateSVGGRI(grid, theme = 'dark', username = 'user') {
       <animate attributeName="x2" from="${LP}" to="${LP + WEEKS * (CELL + GAP)}" dur="6s" repeatCount="indefinite"/>
     </line>`;
 
-  // Glow effect for scan line
   const scanGlow = `
     <line x1="${LP}" y1="${TP - 5}" x2="${LP}" y2="${TP + DAYS * (CELL + GAP)}" 
           stroke="${C.accent}" stroke-width="6" opacity="0.2">
@@ -211,13 +263,16 @@ function generateSVGGRI(grid, theme = 'dark', username = 'user') {
       <animate attributeName="x2" from="${LP}" to="${LP + WEEKS * (CELL + GAP)}" dur="6s" repeatCount="indefinite"/>
     </line>`;
 
-  // Title
   const title = `    <text x="${width / 2}" y="${height - 10}" fill="${C.text}" font-size="11" font-family="ui-monospace,monospace" text-anchor="middle">${username}'s GitHub Resonance Imaging</text>`;
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">
+  <style>
+    .cell-group { cursor: pointer; }
+    .cell-group:hover rect { stroke: ${C.accent}; stroke-width: 1.5; }
+  </style>
   <rect width="100%" height="100%" fill="${C.bg}" rx="8"/>
-${monthLabels}
+${monthLabelsSVG}
 ${dayLabels}
 ${cells}
 ${scanGlow}
@@ -226,7 +281,7 @@ ${title}
 </svg>`;
 }
 
-async function generateHTML(theme, grid, kmag) {
+async function generateHTML(theme, grid, kmag, dates, counts) {
   const colors = {
     dark: {
       accent: '#45e0d8',
@@ -238,6 +293,8 @@ async function generateHTML(theme, grid, kmag) {
       border: '#1e2b38',
       text: '#cfeae4',
       textSecondary: '#9fc4bd',
+      tooltipBg: '#161b22',
+      tooltipBorder: '#30363d',
     },
     light: {
       accent: '#0891b2',
@@ -249,12 +306,20 @@ async function generateHTML(theme, grid, kmag) {
       border: '#e2e8f0',
       text: '#1e293b',
       textSecondary: '#64748b',
+      tooltipBg: '#f6f8fa',
+      tooltipBorder: '#d0d7de',
     },
   };
 
   const C = colors[theme];
   const gridJSON = JSON.stringify(grid);
   const kmagJSON = JSON.stringify(kmag);
+  const datesJSON = JSON.stringify(dates);
+  const countsJSON = JSON.stringify(counts);
+
+  // Calculate month positions for HTML
+  const monthLabels = calculateMonthPositions(dates);
+  const monthLabelsJSON = JSON.stringify(monthLabels);
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -279,9 +344,26 @@ async function generateHTML(theme, grid, kmag) {
       padding: 20px 24px;
       overflow-x: auto;
     }
+    .tooltip {
+      position: absolute;
+      background: ${C.tooltipBg};
+      border: 1px solid ${C.tooltipBorder};
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 11px;
+      color: ${C.text};
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+      z-index: 1000;
+      white-space: nowrap;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    .tooltip.visible { opacity: 1; }
   </style>
 </head>
 <body>
+  <div class="tooltip" id="tooltip"></div>
   <div class="container">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
       <div style="display:flex;align-items:center;gap:10px;">
@@ -311,7 +393,7 @@ async function generateHTML(theme, grid, kmag) {
       <span style="background:${C.panelBg};border:1px solid ${C.border};border-radius:6px;padding:3px 8px;color:${C.textSecondary};white-space:nowrap;">User <span style="color:${C.accent};font-weight:600;">${githubUserName}</span></span>
     </div>
 
-    <div style="background:#080c11;border:1px solid ${C.border};border-radius:12px;padding:12px 14px;">
+    <div style="background:#080c11;border:1px solid ${C.border};border-radius:12px;padding:12px 14px;position:relative;">
       <canvas id="gri-main" style="display:block;"></canvas>
     </div>
 
@@ -352,6 +434,9 @@ async function generateHTML(theme, grid, kmag) {
   (function(){
     var GRID = ${gridJSON};
     var KMAG = ${kmagJSON};
+    var DATES = ${datesJSON};
+    var COUNTS = ${countsJSON};
+    var MONTH_LABELS = ${monthLabelsJSON};
     var C = {accent:'${C.accent}',dim:'${C.dim}',sig:${JSON.stringify(C.sig)},unacq:'${C.unacq}'};
     var WEEKS=52,DAYS=7;
     var total=0;
@@ -362,16 +447,62 @@ async function generateHTML(theme, grid, kmag) {
     var mx=dpr(document.getElementById('gri-main'),MW,MH);
     var KW=168,KH=96,kx=dpr(document.getElementById('gri-k'),KW,KH);
     var EW=196,EH=96,ex=dpr(document.getElementById('gri-echo'),EW,EH);
-    var months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    var mPos=[0,4,9,13,17,22,26,30,35,39,44,48];
     var dayLab={1:'Mon',3:'Wed',5:'Fri'};
+    
+    // Tooltip
+    var tooltip = document.getElementById('tooltip');
+    var canvasEl = document.getElementById('gri-main');
+    
+    function showTooltip(e, w, d) {
+      var count = COUNTS[w][d];
+      var date = DATES[w][d];
+      if (!date) return;
+      tooltip.innerHTML = '<strong>' + count + '</strong> contributions on <strong>' + date + '</strong>';
+      tooltip.classList.add('visible');
+      updateTooltipPos(e);
+    }
+    
+    function hideTooltip() {
+      tooltip.classList.remove('visible');
+    }
+    
+    function updateTooltipPos(e) {
+      var rect = canvasEl.getBoundingClientRect();
+      var x = e.clientX - rect.left + 10;
+      var y = e.clientY - rect.top - 30;
+      tooltip.style.left = (rect.left + x) + 'px';
+      tooltip.style.top = (rect.top + y) + 'px';
+    }
+    
+    canvasEl.addEventListener('mousemove', function(e) {
+      var rect = canvasEl.getBoundingClientRect();
+      var x = e.clientX - rect.left;
+      var y = e.clientY - rect.top;
+      var w = Math.floor((x - LP) / P);
+      var d = Math.floor((y - TP) / P);
+      if (w >= 0 && w < WEEKS && d >= 0 && d < DAYS && DATES[w][d]) {
+        showTooltip(e, w, d);
+        canvasEl.style.cursor = 'pointer';
+      } else {
+        hideTooltip();
+        canvasEl.style.cursor = 'default';
+      }
+    });
+    
+    canvasEl.addEventListener('mouseleave', hideTooltip);
 
     function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
 
     function drawMain(frac){
       mx.clearRect(0,0,MW,MH);var acq=frac*WEEKS;
       mx.font='10px ui-monospace,monospace';mx.textBaseline='alphabetic';mx.fillStyle=C.dim;
-      for(var i=0;i<12;i++)mx.fillText(months[i],LP+mPos[i]*P,11);
+      
+      // Draw month labels based on actual dates
+      for(var i=0;i<MONTH_LABELS.length;i++){
+        var m = MONTH_LABELS[i];
+        mx.fillText(m.label, LP + m.week * P, 11);
+      }
+      
       mx.textBaseline='middle';
       for(var k in dayLab)mx.fillText(dayLab[k],0,TP+(+k)*P+CELL/2);
       for(var w=0;w<WEEKS;w++)for(var d=0;d<DAYS;d++){var X=LP+w*P,Y=TP+d*P;mx.fillStyle=(acq>=w+1)?C.sig[GRID[w][d]]:C.unacq;rr(mx,X,Y,CELL,CELL,2);mx.fill();}
@@ -424,31 +555,33 @@ async function generateHTML(theme, grid, kmag) {
 
 (async () => {
   try {
-    let grid, kmag;
+    let grid, kmag, dates, counts;
 
     if (githubToken) {
       console.log('Fetching real contribution data from GitHub API...');
       const data = await fetchContributions(githubUserName, githubToken);
       grid = data.grid;
       kmag = data.kmag;
+      dates = data.dates;
+      counts = data.counts;
       console.log(`Loaded ${grid.length} weeks of contribution data`);
     } else {
       console.log('No GITHUB_TOKEN provided, using fake data');
       const fake = generateFakeData();
       grid = fake.grid;
       kmag = fake.kmag;
+      dates = fake.dates;
+      counts = fake.counts;
     }
 
     for (const out of outputs) {
-      // Generate HTML
-      const html = await generateHTML(out.theme, grid, kmag);
+      const html = await generateHTML(out.theme, grid, kmag, dates, counts);
       fs.mkdirSync(path.dirname(out.filename), { recursive: true });
       fs.writeFileSync(out.filename, html);
       console.log(`Generated HTML: ${out.filename}`);
 
-      // Generate SVG
       const svgFilename = out.filename.replace('.html', '.svg');
-      const svg = generateSVGGRI(grid, out.theme, githubUserName);
+      const svg = generateSVGGRI(grid, dates, counts, out.theme, githubUserName);
       fs.writeFileSync(svgFilename, svg);
       console.log(`Generated SVG: ${svgFilename}`);
     }
