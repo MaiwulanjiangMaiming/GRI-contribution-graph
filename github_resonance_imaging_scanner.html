@@ -80,7 +80,7 @@
   var rnd=mul(20260531);
   var GL={G:["01110","10001","10000","10011","10001","10001","01110"],R:["11110","10001","10001","11110","10100","10010","10001"],I:["11111","00100","00100","00100","00100","00100","11111"]};
   var data=[],kmag=[],dates=[],counts=[];
-  var today=new Date();
+  var today=new Date('2026-06-01');
   for(var w=0;w<WEEKS;w++){data[w]=[];kmag[w]=[];dates[w]=[];counts[w]=[];for(var d=0;d<DAYS;d++){var r=rnd();var c=Math.floor(r*20);counts[w][d]=c;data[w][d]=c===0?0:c<=3?1:c<=6?2:c<=10?3:4;kmag[w][d]=c/20;var dayDate=new Date(today);dayDate.setDate(today.getDate()-((51-w)*7+(6-d)));dates[w][d]=dayDate.toISOString().split('T')[0];}}
   var letters=['G','R','I'],sx=17;
   for(var li=0;li<3;li++){var g=GL[letters[li]];for(var cy=0;cy<7;cy++){var row=g[cy];for(var cx=0;cx<5;cx++){if(row[cx]==='1'){var ww=sx+cx;if(ww<WEEKS){var gr=(rnd()>0.35?4:3);data[ww][cy]=gr;counts[ww][cy]=Math.floor((gr/4)*20);kmag[ww][cy]=gr/4;}}}}sx+=6;}
