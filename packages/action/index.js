@@ -138,10 +138,13 @@ function generateFakeData() {
     counts[w] = [];
     for (let d = 0; d < 7; d++) {
       const r = rnd();
-      // counts: 0-20 contributions
-      counts[w][d] = Math.floor(r * 20);
+      // Sparse: 70% zero, 20% low (1-3), 10% medium (4-8)
+      let c;
+      if (r < 0.7) c = 0;
+      else if (r < 0.9) c = Math.floor((r - 0.7) / 0.2 * 3) + 1;
+      else c = Math.floor((r - 0.9) / 0.1 * 5) + 4;
+      counts[w][d] = c;
       // grid level based on counts (0-4), matching GitHub's 5 levels
-      const c = counts[w][d];
       grid[w][d] = c === 0 ? 0 : c <= 3 ? 1 : c <= 6 ? 2 : c <= 10 ? 3 : 4;
       // kmag based on counts (normalized)
       kmag[w][d] = c / 20;

@@ -86,14 +86,18 @@
   }
   var rnd=mul(20260531);
 
-  // Generate base contribution data
+  // Generate base contribution data (sparse outside GRI)
   var counts=[], dates=[], kmag=[];
   var today=new Date('2026-06-01');
   for(var w=0;w<WEEKS;w++){
     counts[w]=[]; dates[w]=[]; kmag[w]=[];
     for(var d=0;d<DAYS;d++){
       var r=rnd();
-      var c=Math.floor(r*20);
+      // Sparse: 70% zero, 20% low (1-3), 10% medium (4-8)
+      var c;
+      if(r<0.7) c=0;
+      else if(r<0.9) c=Math.floor((r-0.7)/0.2*3)+1;
+      else c=Math.floor((r-0.9)/0.1*5)+4;
       counts[w][d]=c;
       kmag[w][d]=c/20;
       var dayDate=new Date(today);
