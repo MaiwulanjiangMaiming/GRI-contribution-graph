@@ -39,6 +39,9 @@ jobs:
             output/gri-dark.svg?theme=dark
             output/gri-light.svg?theme=light
 
+      - name: Copy gri-core.js to output
+        run: cp packages/core/gri-core.js output/gri-core.js
+
       - name: Push to output branch
         uses: crazy-max/ghaction-github-pages@v4
         with:
