@@ -644,6 +644,17 @@ ${title}
       this.ex.stroke();
     }
 
+    calcSignal(pe) {
+      let sig = 0;
+      const { counts } = this.data;
+      for (let w = 0; w < pe && w < 52; w++) {
+        for (let d = 0; d < 7; d++) {
+          sig += counts[w][d];
+        }
+      }
+      return sig;
+    }
+
     setHUD(mode, frac) {
       const pe = mode === 'ACQ' ? Math.min(52, Math.ceil(frac * 52)) : 52;
       const statusEl = document.getElementById(`gri-status-${this.id}`);
@@ -657,7 +668,10 @@ ${title}
       }
       if (peEl) peEl.textContent = `${pe} / 52`;
       if (trEl) trEl.textContent = `${pe} wk`;
-      if (totalEl) totalEl.textContent = (mode === 'DONE' || mode === 'REC') ? `${this.total} au` : '— au';
+      if (totalEl) {
+        const sig = this.calcSignal(pe);
+        totalEl.textContent = `${sig} au`;
+      }
     }
 
     destroy() {

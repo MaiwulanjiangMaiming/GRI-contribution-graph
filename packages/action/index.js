@@ -516,7 +516,19 @@ async function generateHTML(theme, grid, kmag, dates, counts) {
     }
 
     var statusEl=document.getElementById('gri-status'),peEl=document.getElementById('gri-pe'),trEl=document.getElementById('gri-tr'),totalEl=document.getElementById('gri-total');
-    function setHUD(mode,pe){statusEl.textContent=mode==='ACQ'?'ACQUIRING':(mode==='REC'?'RECON · iFFT':'SCAN COMPLETE');statusEl.style.color=mode==='DONE'?'#86f2b0':(mode==='REC'?'${C.accent}':'${C.accent}');peEl.textContent=pe+' / '+WEEKS;trEl.textContent=pe+' wk';totalEl.textContent=(mode==='DONE'||mode==='REC')?total+' au':'— au';}
+    function calcSignal(pe){
+      var sig=0;
+      for(var w=0;w<pe&&w<WEEKS;w++)for(var d=0;d<DAYS;d++)sig+=COUNTS[w][d];
+      return sig;
+    }
+    function setHUD(mode,pe){
+      statusEl.textContent=mode==='ACQ'?'ACQUIRING':(mode==='REC'?'RECON · iFFT':'SCAN COMPLETE');
+      statusEl.style.color=mode==='DONE'?'#86f2b0':(mode==='REC'?'${C.accent}':'${C.accent}');
+      peEl.textContent=pe+' / '+WEEKS;
+      trEl.textContent=pe+' wk';
+      var sig=calcSignal(pe);
+      totalEl.textContent=sig+' au';
+    }
 
     var SCAN=6000,RECON=900,DONE=2400,CYC=SCAN+RECON+DONE,acc=0,last=null,running=true;
     function tick(ts){
