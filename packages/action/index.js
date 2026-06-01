@@ -138,9 +138,13 @@ function generateFakeData() {
     counts[w] = [];
     for (let d = 0; d < 7; d++) {
       const r = rnd();
-      grid[w][d] = r > 0.82 ? 2 : r > 0.55 ? 1 : 0;
-      kmag[w][d] = rnd();
-      counts[w][d] = Math.floor(r * 10);
+      // counts: 0-20 contributions
+      counts[w][d] = Math.floor(r * 20);
+      // grid level based on counts (0-4), matching GitHub's 5 levels
+      const c = counts[w][d];
+      grid[w][d] = c === 0 ? 0 : c <= 3 ? 1 : c <= 6 ? 2 : c <= 10 ? 3 : 4;
+      // kmag based on counts (normalized)
+      kmag[w][d] = c / 20;
       
       const dayDate = new Date(today);
       dayDate.setDate(today.getDate() - ((51 - w) * 7 + (6 - d)));
