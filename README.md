@@ -19,7 +19,20 @@ Pull a GitHub user's contribution graph, simulate an MRI acquisition sequence �
 - **Dark & Light Themes** — Automatic theme switching via `prefers-color-scheme`
 - **Interactive Controls** — Pause/play and re-scan
 - **GitHub Action** — Auto-generate daily for your profile README
-- **Interactive Demo** — Try it live at [MaiwulanjiangMaiming.github.io/GRI-contribution-graph](https://MaiwulanjiangMaiming.github.io/GRI-contribution-graph)
+- **Interactive Demo** — Try it live at [maiwulanjiangmaiming.github.io/pages/gri-demo.html](https://maiwulanjiangmaiming.github.io/pages/gri-demo.html)
+- **Real Contribution Data** — Fetches actual GitHub contribution data via GraphQL API
+- **Tooltip on Hover** — Hover any cell to see exact contribution count and date
+- **Real-time Σ Signal** — Signal accumulates as the scan progresses
+
+## Live Demo
+
+**[View Live Demo →](https://maiwulanjiangmaiming.github.io/pages/gri-demo.html)**
+
+The demo features:
+- Dark & Light theme toggle
+- Real contribution data visualization
+- MRI scan animation with k-space and echo
+- Hover tooltips showing contribution details
 
 ## Usage
 
@@ -48,7 +61,7 @@ Then embed in your README:
 
 ### Interactive Demo
 
-Visit the live demo: **[MaiwulanjiangMaiming.github.io/GRI-contribution-graph](https://MaiwulanjiangMaiming.github.io/GRI-contribution-graph)**
+Visit the live demo: **[maiwulanjiangmaiming.github.io/pages/gri-demo.html](https://maiwulanjiangmaiming.github.io/pages/gri-demo.html)**
 
 Or run locally:
 
@@ -70,6 +83,8 @@ The scanner displays realistic MRI parameters:
 | Matrix | 52×7 | 52 weeks × 7 days |
 | FOV | 365 d | Field of View (one year) |
 | NEX | 1 | Number of Excitations |
+| PE line | 0-52 | Phase Encode line (current week) |
+| Σ signal | 0-N au | Accumulated contribution count |
 
 ## Implementation
 
@@ -85,7 +100,8 @@ The visualization is built with pure HTML5 Canvas and vanilla JavaScript:
 ```
 github-resonance-imaging/
 ├── packages/
-│   └── action/          # GitHub Action entry point
+│   ├── action/          # GitHub Action entry point
+│   └── core/            # Core library (gri-core.js)
 ├── .github/
 │   └── workflows/       # CI/CD workflows
 ├── github_resonance_imaging_scanner.html        # Dark theme
@@ -94,6 +110,21 @@ github-resonance-imaging/
 ├── package.json
 ├── action.yml           # GitHub Action metadata
 └── README.md
+```
+
+### CDN Usage
+
+You can also use the GRI core library via CDN in your own projects:
+
+```html
+<script src="https://cdn.jsdelivr.net/gh/MaiwulanjiangMaiming/GRI-contribution-graph@output/gri-core.js"></script>
+<script>
+  GRI.init({
+    container: '#gri-container',
+    username: 'your-github-username',
+    theme: 'dark'
+  });
+</script>
 ```
 
 ## Development
