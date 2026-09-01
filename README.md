@@ -1,6 +1,6 @@
 # GitHub Resonance Imaging (GRI)
 
-[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/rock/github-resonance-imaging/main.yml?label=demo&style=flat-square)](https://github.com/rock/github-resonance-imaging/actions)
+[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/MaiwulanjiangMaiming/GRI-contribution-graph/main.yml?label=demo&style=flat-square)](https://github.com/MaiwulanjiangMaiming/GRI-contribution-graph/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 
 > An animated MRI scan visualization of GitHub contribution graphs.
@@ -8,9 +8,9 @@
 Pull a GitHub user's contribution graph, simulate an MRI acquisition sequence — complete with k-space filling, echo formation, and image reconstruction — then render it as an animated SVG or interactive HTML.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/rock/github-resonance-imaging/output/gri-dark.svg" />
-  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/rock/github-resonance-imaging/output/gri-light.svg" />
-  <img alt="GitHub Resonance Imaging scan animation" src="https://raw.githubusercontent.com/rock/github-resonance-imaging/output/gri-dark.svg" />
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/MaiwulanjiangMaiming/GRI-contribution-graph/output/gri-dark.svg" />
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/MaiwulanjiangMaiming/GRI-contribution-graph/output/gri-light.svg" />
+  <img alt="GitHub Resonance Imaging scan animation" src="https://raw.githubusercontent.com/MaiwulanjiangMaiming/GRI-contribution-graph/output/gri-dark.svg" />
 </picture>
 
 ## Features
@@ -26,7 +26,7 @@ Pull a GitHub user's contribution graph, simulate an MRI acquisition sequence �
 
 ## Live Demo
 
-**[View Live Demo →](https://rock.github.io/github-resonance-imaging/)**
+**[View Live Demo →](https://maiwulanjiangmaiming.github.io/pages/gri-demo.html)**
 
 The demo features:
 - Dark & Light theme toggle
@@ -41,7 +41,7 @@ The demo features:
 Add to your profile README workflow:
 
 ```yaml
-- uses: rock/github-resonance-imaging@v1
+- uses: MaiwulanjiangMaiming/GRI-contribution-graph@v1
   with:
     github_user_name: ${{ github.repository_owner }}
     outputs: |
@@ -95,17 +95,31 @@ The visualization is built with pure HTML5 Canvas and vanilla JavaScript:
 - **Echo Canvas** — MR signal echo waveform
 - **HUD Panel** — Live acquisition parameters
 
+All four demo pages (dark/light × preview/scanner) share a single renderer, `demo-core.js`. Each HTML file only declares its own DOM and theme palette, then calls:
+
+```js
+GRIDemo.init({
+  colors: { accent: '#45e0d8', sig: [...], ... },
+  data: { start: '2025-09-07', end: '2026-09-01', counts: [...] } // or 'fake' for demo data
+});
+```
+
+Dates, color levels and k-space intensity are derived from `counts` at runtime — no hardcoded per-cell data.
+
 ### Project Structure
 
 ```
-github-resonance-imaging/
+GRI-contribution-graph/
 ├── packages/
 │   ├── action/          # GitHub Action entry point
 │   └── core/            # Core library (gri-core.js)
 ├── .github/
 │   └── workflows/       # CI/CD workflows
-├── github_resonance_imaging_scanner.html        # Dark theme
-├── github_resonance_imaging_scanner_light.html  # Light theme
+├── demo-core.js                                 # Shared demo renderer (all 4 demo pages)
+├── preview-dark.html                            # Local preview, dark, real data
+├── preview-light.html                           # Local preview, light, real data
+├── github_resonance_imaging_scanner.html        # Embeddable scanner, dark, demo data
+├── github_resonance_imaging_scanner_light.html  # Embeddable scanner, light, demo data
 ├── index.html           # Interactive demo page
 ├── package.json
 ├── action.yml           # GitHub Action metadata
@@ -117,7 +131,7 @@ github-resonance-imaging/
 You can also use the GRI core library via CDN in your own projects:
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/rock/github-resonance-imaging@output/gri-core.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/MaiwulanjiangMaiming/GRI-contribution-graph@output/gri-core.js"></script>
 <script>
   GRI.init({
     container: '#gri-container',
@@ -145,4 +159,4 @@ npm run lint
 
 ## License
 
-MIT © [rock](https://github.com/rock)
+MIT © [MaiwulanjiangMaiming](https://github.com/MaiwulanjiangMaiming)
