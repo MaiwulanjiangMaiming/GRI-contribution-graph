@@ -392,8 +392,8 @@ ${title}
           <span style="background:${C.panelBg};border:1px solid ${C.border};border-radius:6px;padding:3px 8px;color:${C.textSecondary};white-space:nowrap;">Seq <span style="color:${C.accent};font-weight:600;">GitEcho</span></span>
           <span style="background:${C.panelBg};border:1px solid ${C.border};border-radius:6px;padding:3px 8px;color:${C.textSecondary};white-space:nowrap;">TR <span style="color:${C.accent};font-weight:600;">7 d</span></span>
           <span style="background:${C.panelBg};border:1px solid ${C.border};border-radius:6px;padding:3px 8px;color:${C.textSecondary};white-space:nowrap;">TE <span style="color:${C.accent};font-weight:600;">24 h</span></span>
-          <span style="background:${C.panelBg};border:1px solid ${C.border};border-radius:6px;padding:3px 8px;color:${C.textSecondary};white-space:nowrap;">FA <span style="color:${C.accent};font-weight:600;">42°</span></span>
-          <span style="background:${C.panelBg};border:1px solid ${C.border};border-radius:6px;padding:3px 8px;color:${C.textSecondary};white-space:nowrap;">Matrix <span style="color:${C.accent};font-weight:600;">52×7</span></span>
+          <span style="background:${C.panelBg};border:1px solid ${C.border};border-radius:6px;padding:3px 8px;color:${C.textSecondary};white-space:nowrap;">FA <span style="color:${C.accent};font-weight:600;">42&#176;</span></span>
+          <span style="background:${C.panelBg};border:1px solid ${C.border};border-radius:6px;padding:3px 8px;color:${C.textSecondary};white-space:nowrap;">Matrix <span style="color:${C.accent};font-weight:600;">52&#215;7</span></span>
           <span style="background:${C.panelBg};border:1px solid ${C.border};border-radius:6px;padding:3px 8px;color:${C.textSecondary};white-space:nowrap;">FOV <span style="color:${C.accent};font-weight:600;">365 d</span></span>
           <span style="background:${C.panelBg};border:1px solid ${C.border};border-radius:6px;padding:3px 8px;color:${C.textSecondary};white-space:nowrap;">User <span style="color:${C.accent};font-weight:600;">${u}</span></span>
         </div>
@@ -430,7 +430,7 @@ ${title}
               <span>TR elapsed</span><span id="gri-tr-${this.id}" style="color:${C.text};font-weight:600;">0 wk</span>
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center;">
-              <span>Σ signal</span><span id="gri-total-${this.id}" style="color:#86f2b0;font-weight:600;">— au</span>
+              <span>&#931; signal</span><span id="gri-total-${this.id}" style="color:#86f2b0;font-weight:600;">&#8212; au</span>
             </div>
           </div>`;
       }
@@ -658,7 +658,7 @@ ${title}
       
       this.kx.fillStyle = C.dim;
       this.kx.font = '9px ui-monospace,monospace';
-      this.kx.fillText('PE → (weeks)', 8, KH - 5);
+      this.kx.fillText('PE \u2192 (weeks)', 8, KH - 5);
     }
 
     drawEcho(frac) {
@@ -726,7 +726,7 @@ ${title}
       const totalEl = document.getElementById(`gri-total-${this.id}`);
       
       if (statusEl) {
-        statusEl.textContent = mode === 'ACQ' ? 'ACQUIRING' : (mode === 'REC' ? 'RECON · iFFT' : 'SCAN COMPLETE');
+        statusEl.textContent = mode === 'ACQ' ? 'ACQUIRING' : (mode === 'REC' ? 'RECON \u00B7 iFFT' : 'SCAN COMPLETE');
         statusEl.style.color = mode === 'DONE' ? '#86f2b0' : this.C.accent;
       }
       if (peEl) peEl.textContent = `${pe} / 52`;

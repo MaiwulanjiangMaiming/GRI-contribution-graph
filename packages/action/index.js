@@ -437,8 +437,8 @@ async function generateHTML(theme, grid, kmag, dates, counts) {
       <span style="background:${C.panelBg};border:1px solid ${C.border};border-radius:6px;padding:3px 8px;color:${C.textSecondary};white-space:nowrap;">Seq <span style="color:${C.accent};font-weight:600;">GitEcho</span></span>
       <span style="background:${C.panelBg};border:1px solid ${C.border};border-radius:6px;padding:3px 8px;color:${C.textSecondary};white-space:nowrap;">TR <span style="color:${C.accent};font-weight:600;">7 d</span></span>
       <span style="background:${C.panelBg};border:1px solid ${C.border};border-radius:6px;padding:3px 8px;color:${C.textSecondary};white-space:nowrap;">TE <span style="color:${C.accent};font-weight:600;">24 h</span></span>
-      <span style="background:${C.panelBg};border:1px solid ${C.border};border-radius:6px;padding:3px 8px;color:${C.textSecondary};white-space:nowrap;">FA <span style="color:${C.accent};font-weight:600;">42°</span></span>
-      <span style="background:${C.panelBg};border:1px solid ${C.border};border-radius:6px;padding:3px 8px;color:${C.textSecondary};white-space:nowrap;">Matrix <span style="color:${C.accent};font-weight:600;">52×7</span></span>
+      <span style="background:${C.panelBg};border:1px solid ${C.border};border-radius:6px;padding:3px 8px;color:${C.textSecondary};white-space:nowrap;">FA <span style="color:${C.accent};font-weight:600;">42&#176;</span></span>
+      <span style="background:${C.panelBg};border:1px solid ${C.border};border-radius:6px;padding:3px 8px;color:${C.textSecondary};white-space:nowrap;">Matrix <span style="color:${C.accent};font-weight:600;">52&#215;7</span></span>
       <span style="background:${C.panelBg};border:1px solid ${C.border};border-radius:6px;padding:3px 8px;color:${C.textSecondary};white-space:nowrap;">FOV <span style="color:${C.accent};font-weight:600;">365 d</span></span>
       <span style="background:${C.panelBg};border:1px solid ${C.border};border-radius:6px;padding:3px 8px;color:${C.textSecondary};white-space:nowrap;">User <span style="color:${C.accent};font-weight:600;">${githubUserName}</span></span>
     </div>
@@ -466,8 +466,8 @@ async function generateHTML(theme, grid, kmag, dates, counts) {
           <span id="gri-tr" style="color:${C.text};font-weight:600;font-family:ui-monospace,monospace;">0 wk</span>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;">
-          <span>Σ signal</span>
-          <span id="gri-total" style="color:#86f2b0;font-weight:600;font-family:ui-monospace,monospace;">— au</span>
+          <span>&#931; signal</span>
+          <span id="gri-total" style="color:#86f2b0;font-weight:600;font-family:ui-monospace,monospace;">&#8212; au</span>
         </div>
       </div>
     </div>
@@ -561,7 +561,7 @@ async function generateHTML(theme, grid, kmag, dates, counts) {
       kx.clearRect(0,0,KW,KH);
       var acq=frac*WEEKS,gx=8,gy=20,gw=KW-16,gh=KH-32,cw=gw/WEEKS,ch=gh/DAYS;
       for(var w=0;w<WEEKS;w++){var filled=acq>=w+1;for(var d=0;d<DAYS;d++){var v=filled?KMAG[w][d]:0;if(filled){var gg=Math.round(30+v*215);kx.fillStyle='rgb('+Math.round(v*110)+','+gg+','+Math.round(170+v*70)+')';}else kx.fillStyle=C.unacq;kx.fillRect(gx+w*cw,gy+d*ch,Math.max(cw-0.3,0.8),ch-0.5);}}
-      kx.fillStyle=C.dim;kx.font='9px ui-monospace,monospace';kx.fillText('PE → (weeks)',8,KH-5);
+      kx.fillStyle=C.dim;kx.font='9px ui-monospace,monospace';kx.fillText('PE \u2192 (weeks)',8,KH-5);
     }
 
     function drawEcho(frac){
@@ -583,7 +583,7 @@ async function generateHTML(theme, grid, kmag, dates, counts) {
       return sig;
     }
     function setHUD(mode,pe){
-      statusEl.textContent=mode==='ACQ'?'ACQUIRING':(mode==='REC'?'RECON · iFFT':'SCAN COMPLETE');
+      statusEl.textContent=mode==='ACQ'?'ACQUIRING':(mode==='REC'?'RECON \u00B7 iFFT':'SCAN COMPLETE');
       statusEl.style.color=mode==='DONE'?'#86f2b0':(mode==='REC'?'${C.accent}':'${C.accent}');
       peEl.textContent=pe+' / '+WEEKS;
       trEl.textContent=pe+' wk';

@@ -331,7 +331,7 @@ const GRI = (function () {
 
       c.fillStyle = C.dim;
       c.font = '9px ui-monospace,monospace';
-      c.fillText('PE → (weeks)', 8, this.KH - 5);
+      c.fillText('PE \u2192 (weeks)', 8, this.KH - 5);
     }
 
     drawEcho(frac) {
