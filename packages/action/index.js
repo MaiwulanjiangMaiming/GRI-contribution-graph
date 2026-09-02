@@ -22,8 +22,13 @@ const outputs = outputsRaw.map(line => {
     filename,
     theme: params.get('theme') || 'dark',
     speed: params.get('speed') || 'normal',
+    watermark: params.get('watermark') === '1',
   };
 });
+
+// Opt-in GRI letter watermark (?watermark=1). Off by default so real
+// contribution data is never overwritten.
+const WATERMARK = outputs.some(o => o.watermark);
 
 fs.mkdirSync('dist', { recursive: true });
 
@@ -110,30 +115,32 @@ async function fetchContributions(username, token) {
     counts.push(new Array(7).fill(0));
   }
 
-  // Apply GRI letter overlay
-  const GL = {
-    G: ['01110', '10001', '10000', '10011', '10001', '10001', '01110'],
-    R: ['11110', '10001', '10001', '11110', '10100', '10010', '10001'],
-    I: ['11111', '00100', '00100', '00100', '00100', '00100', '11111']
-  };
-  const letters = ['G', 'R', 'I'];
-  let sx = 17;
-  for (let li = 0; li < 3; li++) {
-    const g = GL[letters[li]];
-    for (let cy = 0; cy < 7; cy++) {
-      const row = g[cy];
-      for (let cx = 0; cx < 5; cx++) {
-        if (row[cx] === '1') {
-          const ww = sx + cx;
-          if (ww < 52 && cy < 7) {
-            grid[ww][cy] = 4;
-            counts[ww][cy] = 15 + Math.floor(Math.random() * 5);
-            kmag[ww][cy] = counts[ww][cy] / 20;
+  // Apply GRI letter overlay (opt-in via ?watermark=1)
+  if (WATERMARK) {
+    const GL = {
+      G: ['01110', '10001', '10000', '10011', '10001', '10001', '01110'],
+      R: ['11110', '10001', '10001', '11110', '10100', '10010', '10001'],
+      I: ['11111', '00100', '00100', '00100', '00100', '00100', '11111']
+    };
+    const letters = ['G', 'R', 'I'];
+    let sx = 17;
+    for (let li = 0; li < 3; li++) {
+      const g = GL[letters[li]];
+      for (let cy = 0; cy < 7; cy++) {
+        const row = g[cy];
+        for (let cx = 0; cx < 5; cx++) {
+          if (row[cx] === '1') {
+            const ww = sx + cx;
+            if (ww < 52 && cy < 7) {
+              grid[ww][cy] = 4;
+              counts[ww][cy] = 15 + Math.floor(Math.random() * 5);
+              kmag[ww][cy] = counts[ww][cy] / 20;
+            }
           }
         }
       }
+      sx += 6;
     }
-    sx += 6;
   }
 
   return { grid, kmag, dates, counts };
@@ -239,30 +246,35 @@ function generateSVGGRI(grid, dates, counts, theme = 'dark', username = 'user') 
   const width = LP + WEEKS * (CELL + GAP) + PAD;
   const height = TP + DAYS * (CELL + GAP) + PAD + 40;
 
-  // GRI letter overlay
-  const GL = {
-    G: ['01110', '10001', '10000', '10011', '10001', '10001', '01110'],
-    R: ['11110', '10001', '10001', '11110', '10100', '10010', '10001'],
-    I: ['11111', '00100', '00100', '00100', '00100', '00100', '11111']
-  };
-  const isGRI = Array(WEEKS).fill(null).map(() => Array(DAYS).fill(false));
-  const letters = ['G', 'R', 'I'];
-  let sx = 17;
-  for (let li = 0; li < 3; li++) {
-    const g = GL[letters[li]];
-    for (let cy = 0; cy < 7; cy++) {
-      const row = g[cy];
-      for (let cx = 0; cx < 5; cx++) {
-        if (row[cx] === '1') {
-          const ww = sx + cx;
-          if (ww < WEEKS && cy < DAYS) {
-            isGRI[ww][cy] = true;
+  // GRI letter overlay (only when watermark is enabled)
+  const isGRI = WATERMARK
+    ? (() => {
+        const GL = {
+          G: ['01110', '10001', '10000', '10011', '10001', '10001', '01110'],
+          R: ['11110', '10001', '10001', '11110', '10100', '10010', '10001'],
+          I: ['11111', '00100', '00100', '00100', '00100', '00100', '11111']
+        };
+        const mask = Array(WEEKS).fill(null).map(() => Array(DAYS).fill(false));
+        const letters = ['G', 'R', 'I'];
+        let sx = 17;
+        for (let li = 0; li < 3; li++) {
+          const g = GL[letters[li]];
+          for (let cy = 0; cy < 7; cy++) {
+            const row = g[cy];
+            for (let cx = 0; cx < 5; cx++) {
+              if (row[cx] === '1') {
+                const ww = sx + cx;
+                if (ww < WEEKS && cy < DAYS) {
+                  mask[ww][cy] = true;
+                }
+              }
+            }
           }
+          sx += 6;
         }
-      }
-    }
-    sx += 6;
-  }
+        return mask;
+      })()
+    : null;
 
   const monthLabels = calculateMonthPositions(dates);
 
@@ -272,7 +284,7 @@ function generateSVGGRI(grid, dates, counts, theme = 'dark', username = 'user') 
       const x = LP + w * (CELL + GAP);
       const y = TP + d * (CELL + GAP);
       const level = grid[w]?.[d] ?? 0;
-      const isLetter = isGRI[w][d];
+      const isLetter = isGRI ? isGRI[w][d] : false;
       const fill = isLetter ? C.gri[level] : (C.sig[level] || C.unacq);
       const date = dates[w]?.[d] || '';
       const count = counts[w]?.[d] ?? 0;

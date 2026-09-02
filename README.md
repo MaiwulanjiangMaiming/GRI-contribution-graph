@@ -59,6 +59,14 @@ Then embed in your README:
 </picture>
 ```
 
+#### Output parameters
+
+| Param        | Default | Description                                                                                                   |
+| ------------ | ------- | ------------------------------------------------------------------------------------------------------------- |
+| `theme`      | `dark`  | Color theme (`dark` / `light`)                                                                                 |
+| `speed`      | `normal`| Scan animation speed                                                                                           |
+| `watermark`  | `off`   | Set `watermark=1` to stamp a giant "GRI" letter overlay onto the grid. Off by default — your real contribution data is never overwritten. |
+
 ### Interactive Demo
 
 Visit the live demo: **[maiwulanjiangmaiming.github.io/pages/gri-demo.html](https://maiwulanjiangmaiming.github.io/pages/gri-demo.html)**
