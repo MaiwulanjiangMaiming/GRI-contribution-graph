@@ -397,7 +397,8 @@ function generateSVGGRI(grid, kmag, dates, counts, theme = 'dark', username = 'u
     echoVals.push((0.14 + 0.86 * Math.min(1, sum / 2.2)).toFixed(4));
     echoTimes.push((w / WEEKS * fSCAN).toFixed(4));
   }
-  const echoAnim = `<animateTransform attributeName="transform" type="scale" calcMode="discrete" values="${echoVals.join(';')};${echoVals[WEEKS - 1]}" keyTimes="${echoTimes.join(';')};1" dur="${CYC_S}s" repeatCount="indefinite"/>`;
+  // "1 sy" pairs — scale Y only (a bare value would squash X too)
+  const echoAnim = `<animateTransform attributeName="transform" type="scale" calcMode="discrete" values="${echoVals.map(v => `1 ${v}`).join(';')};1 ${echoVals[WEEKS - 1]}" keyTimes="${echoTimes.join(';')};1" dur="${CYC_S}s" repeatCount="indefinite"/>`;
 
   // --- HUD counters (PE line / TR elapsed / Σ signal) ---
   // One group per week slot (white values), then a RECON group (white) and a
