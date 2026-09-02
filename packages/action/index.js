@@ -217,59 +217,48 @@ function calculateMonthPositions(dates) {
 function generateSVGGRI(grid, kmag, dates, counts, theme = 'dark', username = 'user', speed = 'normal') {
   const WEEKS = 52;
   const DAYS = 7;
-  const CELL = 9, GAP = 2, PITCH = CELL + GAP;
-  const LP = 34, TP = 86;              // main grid origin
-  const W = 660, H = 360;              // canvas size
+  // Exact demo-page geometry (gri-demo.html canvas layout)
+  const CELL = 8, P = 10;              // 8px cells on a 10px pitch
+  const W = 644, H = 414;              // 640px demo card + 2px margin
+  const CX = 41, CY = 106;             // main canvas origin (panel border + padding)
+  const LP = 24, TP = 16;              // grid origin inside the canvas
+  const GW = WEEKS * P;                // 520
 
+  // Colors copied verbatim from the demo's THEMES object
   const colors = {
     dark: {
-      bg: '#0d1117', cardBg: '#0b0f14', cardBorder: '#1e2b38',
-      accent: '#45e0d8', dim: '#5d7686',
+      bg: '#080c11', cardBg: '#0b0f14', cardBorder: '#1e2b38',
+      panelBg: '#0f1620', border: '#1e2b38',
+      badgeBg: '#0f1f1c', badgeBorder: '#1a3d36',
+      accent: '#45e0d8', dim: '#5d7686', text: '#cfeae4', textSecondary: '#9fc4bd',
       sig: ['#122a1e', '#1f5c3a', '#2f9c5b', '#46d07e', '#86f2b0'],
-      gri: ['#1a3d38', '#2a7a6e', '#3db8a8', '#5ce8d8', '#a0f5ec'],
-      unacq: '#0d141b', text: '#8b949e', label: '#9fc4bd',
+      unacq: '#0d141b', green: '#86f2b0',
+      btnBg: '#0f1620', btnBorder: '#2a3b49', echoAxis: '#27414f',
+      accentRGB: '69,224,216',
     },
     light: {
-      bg: '#ffffff', cardBg: '#ffffff', cardBorder: '#e2e8f0',
-      accent: '#0891b2', dim: '#94a3b8',
+      bg: '#ffffff', cardBg: '#ffffff', cardBorder: '#e8ecf1',
+      panelBg: '#f8fafc', border: '#e2e8f0',
+      badgeBg: '#f0fdfa', badgeBorder: '#ccfbf1',
+      accent: '#0891b2', dim: '#94a3b8', text: '#1e293b', textSecondary: '#64748b',
       sig: ['#e2e8f0', '#99f6e4', '#5eead4', '#2dd4bf', '#14b8a6'],
-      gri: ['#d1fae5', '#6ee7b7', '#34d399', '#10b981', '#059669'],
-      unacq: '#f1f5f9', text: '#656d76', label: '#64748b',
+      unacq: '#f1f5f9', green: '#059669',
+      btnBg: '#ffffff', btnBorder: '#d1d5db', echoAxis: '#cbd5e1',
+      accentRGB: '8,145,178',
     },
   };
 
   const C = colors[theme] || colors.dark;
   const FONT = 'ui-monospace,SFMono-Regular,Menlo,monospace';
   const DUR = { slow: '10s', normal: '6s', fast: '3s' }[speed] || '6s';
-  const kColor = theme === 'light'
-    ? v => { const i = Math.round(80 + v * 175); return `rgb(${Math.round(i * 0.4)},${i},${Math.round(i * 0.9)})`; }
-    : v => `rgb(${Math.round(v * 110)},${Math.round(30 + v * 215)},${Math.round(170 + v * 70)})`;
+  const DUR_S = { slow: 10, normal: 6, fast: 3 }[speed] || 6;   // scan seconds
+  const REC_S = 0.9, DONE_S = 2.4;                              // recon + hold
+  const CYC_S = DUR_S + REC_S + DONE_S;                         // full cycle
+  const fSCAN = DUR_S / CYC_S;                                  // scan end fraction
+  const fRECE = (DUR_S + REC_S) / CYC_S;                        // scan + recon end
 
-  const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-
-  // Opt-in GRI letter overlay (only when watermark is enabled)
-  const isGRI = WATERMARK
-    ? (() => {
-        const GL = {
-          G: ['01110', '10001', '10000', '10011', '10001', '10001', '01110'],
-          R: ['11110', '10001', '10001', '11110', '10100', '10010', '10001'],
-          I: ['11111', '00100', '00100', '00100', '00100', '00100', '11111']
-        };
-        const mask = Array(WEEKS).fill(null).map(() => Array(DAYS).fill(false));
-        const letters = ['G', 'R', 'I'];
-        let sx = 17;
-        for (let li = 0; li < 3; li++) {
-          const g = GL[letters[li]];
-          for (let cy = 0; cy < DAYS; cy++) {
-            for (let cx = 0; cx < 5; cx++) {
-              if (g[cy][cx] === '1' && sx + cx < WEEKS) mask[sx + cx][cy] = true;
-            }
-          }
-          sx += 6;
-        }
-        return mask;
-      })()
-    : null;
+  // k-space colormap — the demo uses the same formula for both themes
+  const kColor = v => `rgb(${Math.round(v * 110)},${Math.round(30 + v * 215)},${Math.round(170 + v * 70)})`;
 
   // Cumulative signal per week (for the HUD counter)
   const cum = [];
@@ -279,143 +268,203 @@ function generateSVGGRI(grid, kmag, dates, counts, theme = 'dark', username = 'u
     cum.push(run);
   }
 
-  const beginAt = w => (w / WEEKS * DUR).toFixed(3);
+  // --- Header (title + cycling status pill, pixel-matched to the demo) ---
+  const header = `
+    <g transform="translate(26,22) scale(0.8333)" stroke="${C.accent}" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/>
+      <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/>
+      <path d="M2 12h20"/>
+    </g>
+    <text x="56" y="37" font-size="14" font-weight="500" letter-spacing="0.3" font-family="${FONT}" fill="${C.text}">GitHub Resonance Imaging <tspan fill="${C.accent}" font-weight="600">(GRI)</tspan></text>
+    <rect x="492" y="22" width="124" height="22" rx="11" fill="${C.badgeBg}" stroke="${C.badgeBorder}"/>
+    <circle cx="505" cy="33" r="3" fill="${C.accent}">
+      <animate attributeName="opacity" values="1;0.4;1" dur="2s" repeatCount="indefinite"/>
+    </circle>
+    <text x="514" y="37" font-size="11" font-weight="500" font-family="${FONT}" fill="${C.accent}">ACQUIRING
+      <animate attributeName="opacity" values="1;0;0" calcMode="discrete" keyTimes="0;${fSCAN.toFixed(4)};1" dur="${CYC_S}s" repeatCount="indefinite"/>
+    </text>
+    <text x="514" y="37" font-size="11" font-weight="500" font-family="${FONT}" fill="${C.accent}">RECON &#183; iFFT
+      <animate attributeName="opacity" values="0;1;0" calcMode="discrete" keyTimes="0;${fSCAN.toFixed(4)};${fRECE.toFixed(4)}" dur="${CYC_S}s" repeatCount="indefinite"/>
+    </text>
+    <text x="514" y="37" font-size="11" font-weight="500" font-family="${FONT}" fill="${C.green}">SCAN COMPLETE
+      <animate attributeName="opacity" values="0;1" calcMode="discrete" keyTimes="0;${fRECE.toFixed(4)}" dur="${CYC_S}s" repeatCount="indefinite"/>
+    </text>`;
 
-  // --- Main grid cells (revealed in sync with the scan line) ---
+  // --- Parameter chips (one bordered chip per parameter, like the demo) ---
+  const params = [
+    ['Seq', 'GitEcho'], ['TR', '7 d'], ['TE', '24 h'], ['FA', '42&#176;'],
+    ['Matrix', '52&#215;7'], ['FOV', '365 d'], ['NEX', '1'], ['Slice', 'main'],
+  ];
+  let chipX = 26;
+  let paramsSVG = '';
+  for (const [k, v] of params) {
+    const cw = Math.round((`${k} ${v}`).length * 6.1) + 16;
+    paramsSVG += `    <rect x="${chipX}" y="58" width="${cw}" height="19" rx="6" fill="${C.panelBg}" stroke="${C.border}"/>
+    <text x="${chipX + 8}" y="71.5" font-size="10" font-family="${FONT}" fill="${C.textSecondary}">${k} <tspan fill="${C.accent}" font-weight="600">${v}</tspan></text>
+`;
+    chipX += cw + 4;
+  }
+
+  // --- Main grid cells: unacquired base always visible, acquired color
+  //     fades in (discrete, per-cycle) when the scan line passes the column ---
   let cells = '';
   for (let w = 0; w < WEEKS; w++) {
     for (let d = 0; d < DAYS; d++) {
-      const x = LP + w * PITCH;
-      const y = TP + d * PITCH;
+      const x = CX + LP + w * P;
+      const y = CY + TP + d * P;
       const level = grid[w]?.[d] ?? 0;
-      const isLetter = isGRI ? isGRI[w][d] : false;
-      const fill = isLetter ? C.gri[level] : (C.sig[level] || C.unacq);
+      const tw = ((w + 1) / WEEKS * fSCAN).toFixed(4);
       const date = dates[w]?.[d] || '';
       const count = counts[w]?.[d] ?? 0;
-
-      cells += `    <g class="cell-group">
-      <rect x="${x}" y="${y}" width="${CELL}" height="${CELL}" rx="2" fill="${fill}">
-        <animate attributeName="opacity" values="0;1" dur="0.25s" begin="${beginAt(w)}s" fill="freeze"/>
-      </rect>
+      cells += `    <rect x="${x}" y="${y}" width="${CELL}" height="${CELL}" rx="2" fill="${C.unacq}"/>
+    <rect x="${x}" y="${y}" width="${CELL}" height="${CELL}" rx="2" fill="${C.sig[level] || C.unacq}" opacity="0">
       <title>${count} echo on ${date}</title>
-    </g>\n`;
+      <animate attributeName="opacity" values="0;1" calcMode="discrete" keyTimes="0;${tw}" dur="${CYC_S}s" repeatCount="indefinite"/>
+    </rect>
+`;
     }
   }
 
   let monthLabelsSVG = '';
   for (const m of calculateMonthPositions(dates)) {
-    const x = LP + m.week * PITCH;
-    monthLabelsSVG += `    <text x="${x}" y="${TP - 8}" fill="${C.text}" font-size="10" font-family="${FONT}">${m.label}</text>\n`;
+    monthLabelsSVG += `    <text x="${CX + LP + m.week * P}" y="${CY + 11}" fill="${C.dim}" font-size="10" font-family="${FONT}">${m.label}</text>\n`;
   }
 
   const dayLab = { 1: 'Mon', 3: 'Wed', 5: 'Fri' };
   let dayLabels = '';
   for (const k in dayLab) {
-    const y = TP + (+k) * PITCH + CELL / 2 + 3;
-    dayLabels += `    <text x="${LP - 8}" y="${y}" fill="${C.text}" font-size="9" font-family="${FONT}" text-anchor="end">${dayLab[k]}</text>\n`;
+    dayLabels += `    <text x="${CX}" y="${CY + TP + (+k) * P + CELL / 2 + 3.5}" fill="${C.dim}" font-size="10" font-family="${FONT}">${dayLab[k]}</text>\n`;
   }
 
-  // --- Scan line (sweeps, then repeats like the live demo) ---
-  const scanLine = `
-    <line x1="${LP}" y1="${TP - 4}" x2="${LP}" y2="${TP + DAYS * PITCH}" stroke="${C.accent}" stroke-width="6" opacity="0.2">
-      <animate attributeName="x1" from="${LP}" to="${LP + WEEKS * PITCH}" dur="${DUR}" repeatCount="indefinite"/>
-      <animate attributeName="x2" from="${LP}" to="${LP + WEEKS * PITCH}" dur="${DUR}" repeatCount="indefinite"/>
-    </line>
-    <line x1="${LP}" y1="${TP - 4}" x2="${LP}" y2="${TP + DAYS * PITCH}" stroke="${C.accent}" stroke-width="2" opacity="0.8">
-      <animate attributeName="x1" from="${LP}" to="${LP + WEEKS * PITCH}" dur="${DUR}" repeatCount="indefinite"/>
-      <animate attributeName="x2" from="${LP}" to="${LP + WEEKS * PITCH}" dur="${DUR}" repeatCount="indefinite"/>
-    </line>`;
+  // --- Scan line (visible during ACQ only) + RECON sweep with teal overlay ---
+  const lineY1 = CY + TP - 3, lineY2 = CY + TP + DAYS * P - 2;
+  const scanAndRecon = `
+    <g>
+      <animate attributeName="opacity" values="1;0" calcMode="discrete" keyTimes="0;${fSCAN.toFixed(4)}" dur="${CYC_S}s" repeatCount="indefinite"/>
+      <line x1="${CX + LP}" y1="${lineY1}" x2="${CX + LP}" y2="${lineY2}" stroke="${C.accent}" stroke-width="4" opacity="0.25">
+        <animate attributeName="x1" values="${CX + LP};${CX + LP + GW};${CX + LP + GW}" keyTimes="0;${fSCAN.toFixed(4)};1" dur="${CYC_S}s" repeatCount="indefinite"/>
+        <animate attributeName="x2" values="${CX + LP};${CX + LP + GW};${CX + LP + GW}" keyTimes="0;${fSCAN.toFixed(4)};1" dur="${CYC_S}s" repeatCount="indefinite"/>
+      </line>
+      <line x1="${CX + LP}" y1="${lineY1}" x2="${CX + LP}" y2="${lineY2}" stroke="${C.accent}" stroke-width="1.5">
+        <animate attributeName="x1" values="${CX + LP};${CX + LP + GW};${CX + LP + GW}" keyTimes="0;${fSCAN.toFixed(4)};1" dur="${CYC_S}s" repeatCount="indefinite"/>
+        <animate attributeName="x2" values="${CX + LP};${CX + LP + GW};${CX + LP + GW}" keyTimes="0;${fSCAN.toFixed(4)};1" dur="${CYC_S}s" repeatCount="indefinite"/>
+      </line>
+    </g>
+    <g>
+      <animate attributeName="opacity" values="0;1;0" calcMode="discrete" keyTimes="0;${fSCAN.toFixed(4)};${fRECE.toFixed(4)}" dur="${CYC_S}s" repeatCount="indefinite"/>
+      <rect x="${CX + LP}" y="${CY + TP - 2}" width="0" height="${DAYS * P}" fill="rgba(${C.accentRGB},0.08)">
+        <animate attributeName="width" values="0;${GW};${GW}" keyTimes="0;${fSCAN.toFixed(4)};1" dur="${CYC_S}s" repeatCount="indefinite"/>
+      </rect>
+      <line x1="${CX + LP}" y1="${lineY1}" x2="${CX + LP}" y2="${lineY2}" stroke="rgba(${C.accentRGB},0.6)" stroke-width="2">
+        <animate attributeName="x1" values="${CX + LP};${CX + LP + GW};${CX + LP + GW}" keyTimes="0;${fSCAN.toFixed(4)};1" dur="${CYC_S}s" repeatCount="indefinite"/>
+        <animate attributeName="x2" values="${CX + LP};${CX + LP + GW};${CX + LP + GW}" keyTimes="0;${fSCAN.toFixed(4)};1" dur="${CYC_S}s" repeatCount="indefinite"/>
+      </line>
+    </g>`;
 
   // --- k-space panel (fills column by column, synced with the scan) ---
-  const KS = { x: LP, y: 178, w: 268, h: 100 };
-  const kw = (KS.w - 20) / WEEKS, kh = 7;
+  const kCanvas = { x: 26, y: 241, w: 170, h: 98 };
+  const kgx = kCanvas.x + 9, kgy = kCanvas.y + 21;   // canvas border 1px + inner offset 8/20
+  const kcw = 152 / WEEKS, kch = 64 / DAYS;
   let kCells = '';
   for (let w = 0; w < WEEKS; w++) {
     let col = '';
     for (let d = 0; d < DAYS; d++) {
-      col += `<rect x="${(KS.x + 10 + w * kw).toFixed(1)}" y="${KS.y + 26 + d * kh}" width="${Math.max(kw - 0.4, 0.8).toFixed(1)}" height="${kh - 1}" fill="${kColor(kmag[w]?.[d] ?? 0)}"/>`;
+      col += `<rect x="${(kgx + w * kcw).toFixed(2)}" y="${(kgy + d * kch).toFixed(2)}" width="${Math.max(kcw - 0.3, 0.8).toFixed(2)}" height="${(kch - 0.5).toFixed(2)}" fill="${kColor(kmag[w]?.[d] ?? 0)}"/>`;
     }
-    kCells += `    <g>
-      <animate attributeName="opacity" values="0;1" dur="0.2s" begin="${beginAt(w)}s" fill="freeze"/>
+    const tw = ((w + 1) / WEEKS * fSCAN).toFixed(4);
+    kCells += `    <g opacity="0">
+      <animate attributeName="opacity" values="0;1" calcMode="discrete" keyTimes="0;${tw}" dur="${CYC_S}s" repeatCount="indefinite"/>
       ${col}
     </g>\n`;
   }
 
-  // --- Echo panel (bell curve fades in after the scan completes) ---
-  const EC = { x: LP + 284, y: 178, w: W - LP - 284 - 16, h: 100 };
-  const cxm = EC.x + EC.w / 2, baseY = EC.y + 60, sigma = 16, freq = 0.55, amp = 40;
-  let curve = '';
-  for (let x = EC.x + 12; x <= EC.x + EC.w - 12; x += 2) {
-    const t = x - cxm;
-    const y = baseY - amp * Math.exp(-(t * t) / (2 * sigma * sigma)) * Math.cos(t * freq);
-    curve += (curve ? ' L' : 'M') + x + ' ' + y.toFixed(1);
+  // --- Echo panel: Gaussian-enveloped cosine whose amplitude tracks the
+  //     week currently under the scan line (animateTransform on y-scale) ---
+  const eCanvas = { x: 208, y: 241, w: 198, h: 98 };
+  const ecx = eCanvas.x + 99, eBaseY = eCanvas.y + 59;
+  const ey0 = eCanvas.y + 23, ey1 = eCanvas.y + 83;
+  const SIG = 14, FREQ = 0.55, AMP_MAX = (eBaseY - ey0) * 0.92;
+  let echoPath = '';
+  for (let x = ecx - 90; x <= ecx + 90; x += 2) {
+    const t = x - ecx;
+    const y = -AMP_MAX * Math.exp(-(t * t) / (2 * SIG * SIG)) * Math.cos(t * FREQ);
+    echoPath += (echoPath ? ' L' : 'M') + x + ' ' + y.toFixed(1);
   }
+  const echoVals = [], echoTimes = [];
+  for (let w = 0; w < WEEKS; w++) {
+    let sum = 0;
+    for (let d = 0; d < DAYS; d++) sum += kmag[w]?.[d] ?? 0;
+    echoVals.push((0.14 + 0.86 * Math.min(1, sum / 2.2)).toFixed(4));
+    echoTimes.push((w / WEEKS * fSCAN).toFixed(4));
+  }
+  const echoAnim = `<animateTransform attributeName="transform" type="scale" calcMode="discrete" values="${echoVals.join(';')};${echoVals[WEEKS - 1]}" keyTimes="${echoTimes.join(';')};1" dur="${CYC_S}s" repeatCount="indefinite"/>`;
 
   // --- HUD counters (PE line / TR elapsed / Σ signal) ---
-  let hud = '';
-  for (let w = 0; w <= WEEKS; w++) {
-    hud += `    <g opacity="0">
-      <animate attributeName="opacity" values="0;1" dur="0.2s" begin="${beginAt(w)}s" fill="freeze"/>
-      <text x="${LP}" y="306" font-size="10" font-family="${FONT}" fill="${C.label}">PE line <tspan fill="${C.accent}" font-weight="600">${w} / ${WEEKS}</tspan></text>
-      <text x="240" y="306" font-size="10" font-family="${FONT}" fill="${C.label}">TR elapsed <tspan fill="${C.accent}" font-weight="600">${w} wk</tspan></text>
-      <text x="420" y="306" font-size="10" font-family="${FONT}" fill="${C.label}">&#931; signal <tspan fill="${C.accent}" font-weight="600">${w ? cum[w - 1] : 0} au</tspan></text>
+  // One group per week slot (white values), then a RECON group (white) and a
+  // DONE group (Σ turns green) — exactly how the demo's setHUD() behaves.
+  const HUD = { x: 418, y: 226, w: 198, h: 122 };
+  const hudVal = (y, txt, fill) => `<text x="${HUD.x + HUD.w - 12}" y="${y}" font-size="12" font-weight="600" font-family="${FONT}" fill="${fill}" text-anchor="end">${txt}</text>`;
+  let hudValues = '';
+  for (let w = 1; w <= WEEKS; w++) {
+    const t0 = ((w - 1) / WEEKS * fSCAN).toFixed(4);
+    const t1 = (w / WEEKS * fSCAN).toFixed(4);
+    hudValues += `    <g opacity="0">
+      <animate attributeName="opacity" values="0;1;0" calcMode="discrete" keyTimes="0;${t0};${t1}" dur="${CYC_S}s" repeatCount="indefinite"/>
+      ${hudVal(253, `${w} / ${WEEKS}`, C.text)}
+      ${hudVal(290, `${w} wk`, C.text)}
+      ${hudVal(326, `${cum[w - 1]} au`, C.text)}
     </g>\n`;
   }
-
-  // --- Header ---
-  const header = `
-    <g transform="translate(28,26)" stroke="${C.accent}" stroke-width="1.6" fill="none" stroke-linecap="round">
-      <circle r="9"/>
-      <path d="M-9 0h18M0 -9c2.8 2.6 2.8 15.4 0 18M0 -9c-2.8 2.6-2.8 15.4 0 18"/>
+  hudValues += `    <g opacity="0">
+      <animate attributeName="opacity" values="0;1;0" calcMode="discrete" keyTimes="0;${fSCAN.toFixed(4)};${fRECE.toFixed(4)}" dur="${CYC_S}s" repeatCount="indefinite"/>
+      ${hudVal(253, `${WEEKS} / ${WEEKS}`, C.text)}
+      ${hudVal(290, `${WEEKS} wk`, C.text)}
+      ${hudVal(326, `${cum[WEEKS - 1]} au`, C.text)}
     </g>
-    <text x="46" y="32" font-size="13" font-family="${FONT}" fill="${C.text}">GitHub Resonance Imaging <tspan fill="${C.accent}" font-weight="600">(GRI)</tspan></text>
-    <rect x="${W - 130}" y="18" width="112" height="20" rx="10" fill="${C.unacq}" stroke="${C.cardBorder}"/>
-    <circle cx="${W - 118}" cy="28" r="3" fill="${C.accent}">
-      <animate attributeName="opacity" values="1;0.4;1" dur="2s" repeatCount="indefinite"/>
-    </circle>
-    <text x="${W - 110}" y="31.5" font-size="9" font-family="${FONT}" fill="${C.accent}" letter-spacing="0.5">ACQUIRING</text>`;
+    <g opacity="0">
+      <animate attributeName="opacity" values="0;1" calcMode="discrete" keyTimes="0;${fRECE.toFixed(4)}" dur="${CYC_S}s" repeatCount="indefinite"/>
+      ${hudVal(253, `${WEEKS} / ${WEEKS}`, C.text)}
+      ${hudVal(290, `${WEEKS} wk`, C.text)}
+      ${hudVal(326, `${cum[WEEKS - 1]} au`, C.green)}
+    </g>\n`;
 
-  // --- Parameter row ---
-  const params = [
-    ['Seq', 'GitEcho'], ['TR', '7 d'], ['TE', '24 h'], ['FA', '42&#176;'],
-    ['Matrix', '52&#215;7'], ['FOV', '365 d'], ['NEX', '1'], ['Slice', 'main'],
-  ];
-  const paramText = params.map(([k, v]) => `${k} <tspan fill="${C.accent}" font-weight="600">${v}</tspan>`).join('&#160;&#160;');
-  const paramsSVG = `    <text x="28" y="64" font-size="10" font-family="${FONT}" fill="${C.label}">${paramText}</text>`;
-
-  // --- Panel boxes for k-space / echo ---
+  // --- Panels, labels and buttons (exact demo positions) ---
   const panelsSVG = `
-    <rect x="${KS.x}" y="${KS.y}" width="${KS.w}" height="${KS.h}" rx="10" fill="${C.unacq}" stroke="${C.cardBorder}"/>
-    <text x="${KS.x + 10}" y="${KS.y + 16}" font-size="9" font-family="${FONT}" fill="${C.dim}" letter-spacing="1">k-SPACE</text>
-    <rect x="${EC.x}" y="${EC.y}" width="${EC.w}" height="${EC.h}" rx="10" fill="${C.unacq}" stroke="${C.cardBorder}"/>
-    <text x="${EC.x + 10}" y="${EC.y + 16}" font-size="9" font-family="${FONT}" fill="${C.dim}" letter-spacing="1">ECHO</text>
-    <line x1="${cxm}" y1="${EC.y + 24}" x2="${cxm}" y2="${EC.y + EC.h - 12}" stroke="${C.dim}" stroke-width="1" stroke-dasharray="3 3"/>
-    <text x="${cxm + 4}" y="${EC.y + EC.h - 14}" font-size="9" font-family="${FONT}" fill="${C.dim}">TE</text>
-    <g>
-      <animate attributeName="opacity" values="0;1" dur="0.6s" begin="${beginAt(WEEKS)}s" fill="freeze"/>
-      <path d="${curve}" fill="none" stroke="${C.accent}" stroke-width="1.4"/>
-    </g>`;
-
-  const title = `    <text x="${W / 2}" y="342" fill="${C.text}" font-size="11" font-family="${FONT}" text-anchor="middle">${esc(username)}'s GitHub Resonance Imaging</text>`;
+    <rect x="26" y="93" width="590" height="119" rx="12" fill="${C.bg}" stroke="${C.border}"/>
+    <rect x="${kCanvas.x}" y="${kCanvas.y}" width="${kCanvas.w}" height="${kCanvas.h}" rx="8" fill="${C.bg}" stroke="${C.border}"/>
+    <text x="28" y="236" font-size="10" font-family="${FONT}" fill="${C.dim}">k-space</text>
+    <text x="${kCanvas.x + 9}" y="${kCanvas.y + 92}" font-size="9" font-family="${FONT}" fill="${C.dim}">PE &#8594; (weeks)</text>
+    <rect x="${eCanvas.x}" y="${eCanvas.y}" width="${eCanvas.w}" height="${eCanvas.h}" rx="8" fill="${C.bg}" stroke="${C.border}"/>
+    <text x="210" y="236" font-size="10" font-family="${FONT}" fill="${C.dim}">MR signal (echo)</text>
+    <line x1="${ecx}" y1="${ey0}" x2="${ecx}" y2="${ey1}" stroke="${C.echoAxis}" stroke-width="1" stroke-dasharray="3 3"/>
+    <text x="${ecx + 3}" y="${ey1}" font-size="9" font-family="${FONT}" fill="${C.dim}">TE</text>
+    <g transform="translate(0,${eBaseY})"><g>${echoAnim}
+      <path d="${echoPath}" fill="none" stroke="${C.accent}" stroke-width="1.4"/>
+    </g></g>
+    <rect x="${HUD.x}" y="${HUD.y}" width="${HUD.w}" height="${HUD.h}" rx="10" fill="${C.panelBg}" stroke="${C.border}"/>
+    <text x="${HUD.x + 14}" y="253" font-size="12" font-family="${FONT}" fill="${C.dim}">PE line</text>
+    <line x1="${HUD.x + 14}" y1="268" x2="${HUD.x + HUD.w - 12}" y2="268" stroke="${C.border}" stroke-width="1"/>
+    <text x="${HUD.x + 14}" y="290" font-size="12" font-family="${FONT}" fill="${C.dim}">TR elapsed</text>
+    <line x1="${HUD.x + 14}" y1="304" x2="${HUD.x + HUD.w - 12}" y2="304" stroke="${C.border}" stroke-width="1"/>
+    <text x="${HUD.x + 14}" y="326" font-size="12" font-family="${FONT}" fill="${C.dim}">&#931; signal</text>
+    <rect x="26" y="362" width="40" height="30" rx="10" fill="${C.btnBg}" stroke="${C.btnBorder}"/>
+    <rect x="42.5" y="372.3" width="2.4" height="9.4" rx="0.5" fill="${C.text}"/>
+    <rect x="47.3" y="372.3" width="2.4" height="9.4" rx="0.5" fill="${C.text}"/>
+    <rect x="74" y="362" width="76" height="30" rx="10" fill="${C.btnBg}" stroke="${C.btnBorder}"/>
+    <text x="112" y="381" font-size="12" font-weight="500" font-family="${FONT}" fill="${C.text}" text-anchor="middle">Re-scan</text>`;
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">
-  <style>
-    .cell-group { cursor: pointer; }
-    .cell-group:hover rect { stroke: ${C.accent}; stroke-width: 1.5; }
-  </style>
-  <rect width="100%" height="100%" fill="${C.bg}" rx="8"/>
-  <rect x="8" y="8" width="${W - 16}" height="${H - 16}" rx="14" fill="${C.cardBg}" stroke="${C.cardBorder}"/>
+  <rect width="100%" height="100%" fill="${C.cardBg}"/>
+  <rect x="2" y="2" width="640" height="410" rx="16" fill="${C.cardBg}" stroke="${C.cardBorder}"/>
 ${header}
 ${paramsSVG}
-${monthLabelsSVG}
-${dayLabels}
-${cells}
-${scanLine}
 ${panelsSVG}
+${monthLabelsSVG}${dayLabels}
+${cells}
+${scanAndRecon}
 ${kCells}
-${hud}
-${title}
+${hudValues}
 </svg>`;
 }
 
