@@ -34,30 +34,69 @@ The demo features:
 - MRI scan animation with k-space and echo
 - Hover tooltips showing contribution details
 
-## Usage
+## Use in your own README
 
-### GitHub Action
+Three steps to get the same animated scanner in your own profile / project README.
 
-Add to your profile README workflow:
+### 1. Add a workflow to your repo
+
+Create `.github/workflows/gri.yml` (replace `YOUR_USERNAME` with your GitHub username):
 
 ```yaml
-- uses: MaiwulanjiangMaiming/GRI-contribution-graph@v1
-  with:
-    github_user_name: ${{ github.repository_owner }}
-    outputs: |
-      dist/gri-dark.svg?theme=dark
-      dist/gri-light.svg?theme=light
+name: GRI
+
+on:
+  schedule:
+    - cron: '0 0 * * *'   # refresh daily
+  workflow_dispatch:       # allow manual trigger
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  gri:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate GRI SVGs
+        uses: MaiwulanjiangMaiming/GRI-contribution-graph@main
+        with:
+          github_user_name: YOUR_USERNAME
+
+      - name: Push to output branch
+        uses: crazy-max/ghaction-github-pages@v4
+        with:
+          target_branch: output
+          build_dir: dist
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-Then embed in your README:
+The Action fetches your real contribution data via the GitHub GraphQL API (using the built-in `GITHUB_TOKEN`, no PAT needed) and renders animated SVGs — no npm install, zero dependencies.
+
+### 2. Run it once
+
+Push the workflow, then trigger it manually from the **Actions** tab (**Run workflow**). This creates the `output` branch with `gri-dark.svg` and `gri-light.svg`. After that it refreshes automatically every day.
+
+### 3. Embed in your README
 
 ```html
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="gri-dark.svg" />
-  <source media="(prefers-color-scheme: light)" srcset="gri-light.svg" />
-  <img alt="GitHub Resonance Imaging" src="gri-dark.svg" />
+  <source media="(prefers-color-scheme: dark)"
+          srcset="https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/output/gri-dark.svg" />
+  <source media="(prefers-color-scheme: light)"
+          srcset="https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/output/gri-light.svg" />
+  <img alt="GitHub Resonance Imaging"
+       src="https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/output/gri-dark.svg" />
 </picture>
 ```
+
+For a profile README, `YOUR_REPO` is your username (e.g. `torvalds/torvalds`).
+
+> **Note** — GitHub READMEs render SVG animations but don't run JavaScript, so hover tooltips are only available on websites (see CDN Usage below). Everything else — the scan line, k-space filling, echo waveform, HUD and GRI letters — animates right inside the README.
 
 #### Output parameters
 

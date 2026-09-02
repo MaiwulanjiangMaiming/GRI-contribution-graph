@@ -214,7 +214,7 @@ function calculateMonthPositions(dates) {
   return monthLabels;
 }
 
-function generateSVGGRI(grid, dates, counts, theme = 'dark', username = 'user') {
+function generateSVGGRI(grid, dates, counts, theme = 'dark', username = 'user', speed = 'normal') {
   const WEEKS = 52;
   const DAYS = 7;
   const CELL = 11;
@@ -243,6 +243,7 @@ function generateSVGGRI(grid, dates, counts, theme = 'dark', username = 'user') 
   };
 
   const C = colors[theme] || colors.dark;
+  const DUR = { slow: '10s', normal: '6s', fast: '3s' }[speed] || '6s';
   const width = LP + WEEKS * (CELL + GAP) + PAD;
   const height = TP + DAYS * (CELL + GAP) + PAD + 40;
 
@@ -315,15 +316,15 @@ function generateSVGGRI(grid, dates, counts, theme = 'dark', username = 'user') 
   const scanLine = `
     <line x1="${LP}" y1="${TP - 5}" x2="${LP}" y2="${TP + DAYS * (CELL + GAP)}" 
           stroke="${C.accent}" stroke-width="2" opacity="0.8">
-      <animate attributeName="x1" from="${LP}" to="${LP + WEEKS * (CELL + GAP)}" dur="6s" repeatCount="indefinite"/>
-      <animate attributeName="x2" from="${LP}" to="${LP + WEEKS * (CELL + GAP)}" dur="6s" repeatCount="indefinite"/>
+      <animate attributeName="x1" from="${LP}" to="${LP + WEEKS * (CELL + GAP)}" dur="${DUR}" repeatCount="indefinite"/>
+      <animate attributeName="x2" from="${LP}" to="${LP + WEEKS * (CELL + GAP)}" dur="${DUR}" repeatCount="indefinite"/>
     </line>`;
 
   const scanGlow = `
     <line x1="${LP}" y1="${TP - 5}" x2="${LP}" y2="${TP + DAYS * (CELL + GAP)}" 
           stroke="${C.accent}" stroke-width="6" opacity="0.2">
-      <animate attributeName="x1" from="${LP}" to="${LP + WEEKS * (CELL + GAP)}" dur="6s" repeatCount="indefinite"/>
-      <animate attributeName="x2" from="${LP}" to="${LP + WEEKS * (CELL + GAP)}" dur="6s" repeatCount="indefinite"/>
+      <animate attributeName="x1" from="${LP}" to="${LP + WEEKS * (CELL + GAP)}" dur="${DUR}" repeatCount="indefinite"/>
+      <animate attributeName="x2" from="${LP}" to="${LP + WEEKS * (CELL + GAP)}" dur="${DUR}" repeatCount="indefinite"/>
     </line>`;
 
   const title = `    <text x="${width / 2}" y="${height - 10}" fill="${C.text}" font-size="11" font-family="ui-monospace,monospace" text-anchor="middle">${username}'s GitHub Resonance Imaging</text>`;
@@ -651,7 +652,7 @@ async function generateHTML(theme, grid, kmag, dates, counts) {
       
       if (ext === '.svg') {
         // Generate SVG
-        const svg = generateSVGGRI(grid, dates, counts, out.theme, githubUserName);
+        const svg = generateSVGGRI(grid, dates, counts, out.theme, githubUserName, out.speed);
         fs.mkdirSync(path.dirname(out.filename), { recursive: true });
         fs.writeFileSync(out.filename, svg);
         console.log(`Generated SVG: ${out.filename}`);
