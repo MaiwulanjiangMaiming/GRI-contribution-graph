@@ -214,40 +214,40 @@ function calculateMonthPositions(dates) {
   return monthLabels;
 }
 
-function generateSVGGRI(grid, dates, counts, theme = 'dark', username = 'user', speed = 'normal') {
+function generateSVGGRI(grid, kmag, dates, counts, theme = 'dark', username = 'user', speed = 'normal') {
   const WEEKS = 52;
   const DAYS = 7;
-  const CELL = 11;
-  const GAP = 2;
-  const PAD = 20;
-  const LP = 40;
-  const TP = 30;
+  const CELL = 9, GAP = 2, PITCH = CELL + GAP;
+  const LP = 34, TP = 86;              // main grid origin
+  const W = 660, H = 360;              // canvas size
 
   const colors = {
     dark: {
-      bg: '#0d1117',
-      accent: '#45e0d8',
+      bg: '#0d1117', cardBg: '#0b0f14', cardBorder: '#1e2b38',
+      accent: '#45e0d8', dim: '#5d7686',
       sig: ['#122a1e', '#1f5c3a', '#2f9c5b', '#46d07e', '#86f2b0'],
       gri: ['#1a3d38', '#2a7a6e', '#3db8a8', '#5ce8d8', '#a0f5ec'],
-      unacq: '#0d141b',
-      text: '#8b949e',
+      unacq: '#0d141b', text: '#8b949e', label: '#9fc4bd',
     },
     light: {
-      bg: '#ffffff',
-      accent: '#0891b2',
+      bg: '#ffffff', cardBg: '#ffffff', cardBorder: '#e2e8f0',
+      accent: '#0891b2', dim: '#94a3b8',
       sig: ['#e2e8f0', '#99f6e4', '#5eead4', '#2dd4bf', '#14b8a6'],
       gri: ['#d1fae5', '#6ee7b7', '#34d399', '#10b981', '#059669'],
-      unacq: '#f1f5f9',
-      text: '#656d76',
+      unacq: '#f1f5f9', text: '#656d76', label: '#64748b',
     },
   };
 
   const C = colors[theme] || colors.dark;
+  const FONT = 'ui-monospace,SFMono-Regular,Menlo,monospace';
   const DUR = { slow: '10s', normal: '6s', fast: '3s' }[speed] || '6s';
-  const width = LP + WEEKS * (CELL + GAP) + PAD;
-  const height = TP + DAYS * (CELL + GAP) + PAD + 40;
+  const kColor = theme === 'light'
+    ? v => { const i = Math.round(80 + v * 175); return `rgb(${Math.round(i * 0.4)},${i},${Math.round(i * 0.9)})`; }
+    : v => `rgb(${Math.round(v * 110)},${Math.round(30 + v * 215)},${Math.round(170 + v * 70)})`;
 
-  // GRI letter overlay (only when watermark is enabled)
+  const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+  // Opt-in GRI letter overlay (only when watermark is enabled)
   const isGRI = WATERMARK
     ? (() => {
         const GL = {
@@ -260,15 +260,9 @@ function generateSVGGRI(grid, dates, counts, theme = 'dark', username = 'user', 
         let sx = 17;
         for (let li = 0; li < 3; li++) {
           const g = GL[letters[li]];
-          for (let cy = 0; cy < 7; cy++) {
-            const row = g[cy];
+          for (let cy = 0; cy < DAYS; cy++) {
             for (let cx = 0; cx < 5; cx++) {
-              if (row[cx] === '1') {
-                const ww = sx + cx;
-                if (ww < WEEKS && cy < DAYS) {
-                  mask[ww][cy] = true;
-                }
-              }
+              if (g[cy][cx] === '1' && sx + cx < WEEKS) mask[sx + cx][cy] = true;
             }
           }
           sx += 6;
@@ -277,23 +271,31 @@ function generateSVGGRI(grid, dates, counts, theme = 'dark', username = 'user', 
       })()
     : null;
 
-  const monthLabels = calculateMonthPositions(dates);
+  // Cumulative signal per week (for the HUD counter)
+  const cum = [];
+  let run = 0;
+  for (let w = 0; w < WEEKS; w++) {
+    for (let d = 0; d < DAYS; d++) run += counts[w]?.[d] ?? 0;
+    cum.push(run);
+  }
 
+  const beginAt = w => (w / WEEKS * DUR).toFixed(3);
+
+  // --- Main grid cells (revealed in sync with the scan line) ---
   let cells = '';
   for (let w = 0; w < WEEKS; w++) {
     for (let d = 0; d < DAYS; d++) {
-      const x = LP + w * (CELL + GAP);
-      const y = TP + d * (CELL + GAP);
+      const x = LP + w * PITCH;
+      const y = TP + d * PITCH;
       const level = grid[w]?.[d] ?? 0;
       const isLetter = isGRI ? isGRI[w][d] : false;
       const fill = isLetter ? C.gri[level] : (C.sig[level] || C.unacq);
       const date = dates[w]?.[d] || '';
       const count = counts[w]?.[d] ?? 0;
-      const delay = w * 0.05;
-      
+
       cells += `    <g class="cell-group">
       <rect x="${x}" y="${y}" width="${CELL}" height="${CELL}" rx="2" fill="${fill}">
-        <animate attributeName="opacity" values="0;1" dur="0.3s" begin="${delay}s" fill="freeze"/>
+        <animate attributeName="opacity" values="0;1" dur="0.25s" begin="${beginAt(w)}s" fill="freeze"/>
       </rect>
       <title>${count} echo on ${date}</title>
     </g>\n`;
@@ -301,46 +303,118 @@ function generateSVGGRI(grid, dates, counts, theme = 'dark', username = 'user', 
   }
 
   let monthLabelsSVG = '';
-  for (const m of monthLabels) {
-    const x = LP + m.week * (CELL + GAP);
-    monthLabelsSVG += `    <text x="${x}" y="${TP - 8}" fill="${C.text}" font-size="10" font-family="ui-monospace,monospace">${m.label}</text>\n`;
+  for (const m of calculateMonthPositions(dates)) {
+    const x = LP + m.week * PITCH;
+    monthLabelsSVG += `    <text x="${x}" y="${TP - 8}" fill="${C.text}" font-size="10" font-family="${FONT}">${m.label}</text>\n`;
   }
 
   const dayLab = { 1: 'Mon', 3: 'Wed', 5: 'Fri' };
   let dayLabels = '';
   for (const k in dayLab) {
-    const y = TP + (+k) * (CELL + GAP) + CELL / 2 + 3;
-    dayLabels += `    <text x="${LP - 8}" y="${y}" fill="${C.text}" font-size="9" font-family="ui-monospace,monospace" text-anchor="end">${dayLab[k]}</text>\n`;
+    const y = TP + (+k) * PITCH + CELL / 2 + 3;
+    dayLabels += `    <text x="${LP - 8}" y="${y}" fill="${C.text}" font-size="9" font-family="${FONT}" text-anchor="end">${dayLab[k]}</text>\n`;
   }
 
+  // --- Scan line (sweeps, then repeats like the live demo) ---
   const scanLine = `
-    <line x1="${LP}" y1="${TP - 5}" x2="${LP}" y2="${TP + DAYS * (CELL + GAP)}" 
-          stroke="${C.accent}" stroke-width="2" opacity="0.8">
-      <animate attributeName="x1" from="${LP}" to="${LP + WEEKS * (CELL + GAP)}" dur="${DUR}" repeatCount="indefinite"/>
-      <animate attributeName="x2" from="${LP}" to="${LP + WEEKS * (CELL + GAP)}" dur="${DUR}" repeatCount="indefinite"/>
+    <line x1="${LP}" y1="${TP - 4}" x2="${LP}" y2="${TP + DAYS * PITCH}" stroke="${C.accent}" stroke-width="6" opacity="0.2">
+      <animate attributeName="x1" from="${LP}" to="${LP + WEEKS * PITCH}" dur="${DUR}" repeatCount="indefinite"/>
+      <animate attributeName="x2" from="${LP}" to="${LP + WEEKS * PITCH}" dur="${DUR}" repeatCount="indefinite"/>
+    </line>
+    <line x1="${LP}" y1="${TP - 4}" x2="${LP}" y2="${TP + DAYS * PITCH}" stroke="${C.accent}" stroke-width="2" opacity="0.8">
+      <animate attributeName="x1" from="${LP}" to="${LP + WEEKS * PITCH}" dur="${DUR}" repeatCount="indefinite"/>
+      <animate attributeName="x2" from="${LP}" to="${LP + WEEKS * PITCH}" dur="${DUR}" repeatCount="indefinite"/>
     </line>`;
 
-  const scanGlow = `
-    <line x1="${LP}" y1="${TP - 5}" x2="${LP}" y2="${TP + DAYS * (CELL + GAP)}" 
-          stroke="${C.accent}" stroke-width="6" opacity="0.2">
-      <animate attributeName="x1" from="${LP}" to="${LP + WEEKS * (CELL + GAP)}" dur="${DUR}" repeatCount="indefinite"/>
-      <animate attributeName="x2" from="${LP}" to="${LP + WEEKS * (CELL + GAP)}" dur="${DUR}" repeatCount="indefinite"/>
-    </line>`;
+  // --- k-space panel (fills column by column, synced with the scan) ---
+  const KS = { x: LP, y: 178, w: 268, h: 100 };
+  const kw = (KS.w - 20) / WEEKS, kh = 7;
+  let kCells = '';
+  for (let w = 0; w < WEEKS; w++) {
+    let col = '';
+    for (let d = 0; d < DAYS; d++) {
+      col += `<rect x="${(KS.x + 10 + w * kw).toFixed(1)}" y="${KS.y + 26 + d * kh}" width="${Math.max(kw - 0.4, 0.8).toFixed(1)}" height="${kh - 1}" fill="${kColor(kmag[w]?.[d] ?? 0)}"/>`;
+    }
+    kCells += `    <g>
+      <animate attributeName="opacity" values="0;1" dur="0.2s" begin="${beginAt(w)}s" fill="freeze"/>
+      ${col}
+    </g>\n`;
+  }
 
-  const title = `    <text x="${width / 2}" y="${height - 10}" fill="${C.text}" font-size="11" font-family="ui-monospace,monospace" text-anchor="middle">${username}'s GitHub Resonance Imaging</text>`;
+  // --- Echo panel (bell curve fades in after the scan completes) ---
+  const EC = { x: LP + 284, y: 178, w: W - LP - 284 - 16, h: 100 };
+  const cxm = EC.x + EC.w / 2, baseY = EC.y + 60, sigma = 16, freq = 0.55, amp = 40;
+  let curve = '';
+  for (let x = EC.x + 12; x <= EC.x + EC.w - 12; x += 2) {
+    const t = x - cxm;
+    const y = baseY - amp * Math.exp(-(t * t) / (2 * sigma * sigma)) * Math.cos(t * freq);
+    curve += (curve ? ' L' : 'M') + x + ' ' + y.toFixed(1);
+  }
+
+  // --- HUD counters (PE line / TR elapsed / Σ signal) ---
+  let hud = '';
+  for (let w = 0; w <= WEEKS; w++) {
+    hud += `    <g opacity="0">
+      <animate attributeName="opacity" values="0;1" dur="0.2s" begin="${beginAt(w)}s" fill="freeze"/>
+      <text x="${LP}" y="306" font-size="10" font-family="${FONT}" fill="${C.label}">PE line <tspan fill="${C.accent}" font-weight="600">${w} / ${WEEKS}</tspan></text>
+      <text x="240" y="306" font-size="10" font-family="${FONT}" fill="${C.label}">TR elapsed <tspan fill="${C.accent}" font-weight="600">${w} wk</tspan></text>
+      <text x="420" y="306" font-size="10" font-family="${FONT}" fill="${C.label}">&#931; signal <tspan fill="${C.accent}" font-weight="600">${w ? cum[w - 1] : 0} au</tspan></text>
+    </g>\n`;
+  }
+
+  // --- Header ---
+  const header = `
+    <g transform="translate(28,26)" stroke="${C.accent}" stroke-width="1.6" fill="none" stroke-linecap="round">
+      <circle r="9"/>
+      <path d="M-9 0h18M0 -9c2.8 2.6 2.8 15.4 0 18M0 -9c-2.8 2.6-2.8 15.4 0 18"/>
+    </g>
+    <text x="46" y="32" font-size="13" font-family="${FONT}" fill="${C.text}">GitHub Resonance Imaging <tspan fill="${C.accent}" font-weight="600">(GRI)</tspan></text>
+    <rect x="${W - 130}" y="18" width="112" height="20" rx="10" fill="${C.unacq}" stroke="${C.cardBorder}"/>
+    <circle cx="${W - 118}" cy="28" r="3" fill="${C.accent}">
+      <animate attributeName="opacity" values="1;0.4;1" dur="2s" repeatCount="indefinite"/>
+    </circle>
+    <text x="${W - 110}" y="31.5" font-size="9" font-family="${FONT}" fill="${C.accent}" letter-spacing="0.5">ACQUIRING</text>`;
+
+  // --- Parameter row ---
+  const params = [
+    ['Seq', 'GitEcho'], ['TR', '7 d'], ['TE', '24 h'], ['FA', '42&#176;'],
+    ['Matrix', '52&#215;7'], ['FOV', '365 d'], ['NEX', '1'], ['Slice', 'main'],
+  ];
+  const paramText = params.map(([k, v]) => `${k} <tspan fill="${C.accent}" font-weight="600">${v}</tspan>`).join('&#160;&#160;');
+  const paramsSVG = `    <text x="28" y="64" font-size="10" font-family="${FONT}" fill="${C.label}">${paramText}</text>`;
+
+  // --- Panel boxes for k-space / echo ---
+  const panelsSVG = `
+    <rect x="${KS.x}" y="${KS.y}" width="${KS.w}" height="${KS.h}" rx="10" fill="${C.unacq}" stroke="${C.cardBorder}"/>
+    <text x="${KS.x + 10}" y="${KS.y + 16}" font-size="9" font-family="${FONT}" fill="${C.dim}" letter-spacing="1">k-SPACE</text>
+    <rect x="${EC.x}" y="${EC.y}" width="${EC.w}" height="${EC.h}" rx="10" fill="${C.unacq}" stroke="${C.cardBorder}"/>
+    <text x="${EC.x + 10}" y="${EC.y + 16}" font-size="9" font-family="${FONT}" fill="${C.dim}" letter-spacing="1">ECHO</text>
+    <line x1="${cxm}" y1="${EC.y + 24}" x2="${cxm}" y2="${EC.y + EC.h - 12}" stroke="${C.dim}" stroke-width="1" stroke-dasharray="3 3"/>
+    <text x="${cxm + 4}" y="${EC.y + EC.h - 14}" font-size="9" font-family="${FONT}" fill="${C.dim}">TE</text>
+    <g>
+      <animate attributeName="opacity" values="0;1" dur="0.6s" begin="${beginAt(WEEKS)}s" fill="freeze"/>
+      <path d="${curve}" fill="none" stroke="${C.accent}" stroke-width="1.4"/>
+    </g>`;
+
+  const title = `    <text x="${W / 2}" y="342" fill="${C.text}" font-size="11" font-family="${FONT}" text-anchor="middle">${esc(username)}'s GitHub Resonance Imaging</text>`;
 
   return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">
   <style>
     .cell-group { cursor: pointer; }
     .cell-group:hover rect { stroke: ${C.accent}; stroke-width: 1.5; }
   </style>
   <rect width="100%" height="100%" fill="${C.bg}" rx="8"/>
+  <rect x="8" y="8" width="${W - 16}" height="${H - 16}" rx="14" fill="${C.cardBg}" stroke="${C.cardBorder}"/>
+${header}
+${paramsSVG}
 ${monthLabelsSVG}
 ${dayLabels}
 ${cells}
-${scanGlow}
 ${scanLine}
+${panelsSVG}
+${kCells}
+${hud}
 ${title}
 </svg>`;
 }
@@ -652,7 +726,7 @@ async function generateHTML(theme, grid, kmag, dates, counts) {
       
       if (ext === '.svg') {
         // Generate SVG
-        const svg = generateSVGGRI(grid, dates, counts, out.theme, githubUserName, out.speed);
+        const svg = generateSVGGRI(grid, kmag, dates, counts, out.theme, githubUserName, out.speed);
         fs.mkdirSync(path.dirname(out.filename), { recursive: true });
         fs.writeFileSync(out.filename, svg);
         console.log(`Generated SVG: ${out.filename}`);

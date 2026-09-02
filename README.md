@@ -96,7 +96,7 @@ Push the workflow, then trigger it manually from the **Actions** tab (**Run work
 
 For a profile README, `YOUR_REPO` is your username (e.g. `torvalds/torvalds`).
 
-> **Note** — GitHub READMEs render SVG animations but don't run JavaScript, so hover tooltips are only available on websites (see CDN Usage below). Everything else — the scan line, k-space filling, echo waveform, HUD and GRI letters — animates right inside the README.
+> **Note** — GitHub READMEs render SVG animations but don't run JavaScript, so hover tooltips are only available on websites (see CDN Usage below). Everything else — the scan line, k-space filling, echo waveform and HUD counters — animates right inside the README. The GRI letter overlay is opt-in via `?watermark=1`.
 
 #### Output parameters
 
